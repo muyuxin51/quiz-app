@@ -1052,13 +1052,6 @@ function renderFeedback(q, chosen) {
     return `<div class="quiz-feedback wrong">❌ 回答错误！正确答案是 <strong>${escapeHtml(correctAns)}</strong>${q.answerDetail ? '<br><small>💡 ' + escapeHtml(q.answerDetail) + '</small>' : ''}</div>`;
   }
 }
-  if (isCorrect) {
-    return `<div class="quiz-feedback correct">✅ 回答正确！</div>`;
-  } else {
-    const correctOpt = q.options.find(o => o.letter === q.answer);
-    return `<div class="quiz-feedback wrong">❌ 回答错误！正确答案是 <strong>${q.answer}</strong>${correctOpt ? '：' + escapeHtml(correctOpt.text) : ''}</div>`;
-  }
-}
 
 function chooseOption(qId, letter) {
   if (userChoices[qId]) return; // already answered
