@@ -476,18 +476,45 @@ body {
 
 <script>
 // ==================== STORAGE LAYER ====================
-const STORAGE_KEY = 'quiz_banks';
 const RECORDS_KEY = 'quiz_records';
 const WRONG_KEY = 'quiz_wrong';
 const THEME_KEY = 'quiz_theme';
+const SHARED_BANKS_URL = 'https://raw.githubusercontent.com/muyuxin51/quiz-app/master/banks.json';
+const UPLOAD_FUNCTION_URL = '/.netlify/functions/upload-bank';
 
-function loadBanks() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+let banks = []; // Merged shared banks
+let localBankIds = new Set(); // Track which banks this user uploaded
+
+function loadLocalBankIds() {
+  try { localBankIds = new Set(JSON.parse(localStorage.getItem('local_bank_ids') || '[]')); }
+  catch { localBankIds = new Set(); }
+}
+function saveLocalBankIds() {
+  localStorage.setItem('local_bank_ids', JSON.stringify([...localBankIds]));
+}
+
+async function fetchSharedBanks() {
+  try {
+    const resp = await fetch(SHARED_BANKS_URL + '?t=' + Date.now());
+    if (!resp.ok) throw new Error('Failed to fetch');
+    const shared = await resp.json();
+    // Mark shared banks
+    shared.forEach(b => { b._shared = true; });
+    return shared;
+  } catch {
+    // Offline fallback: use cached banks from last successful fetch
+    try { return JSON.parse(localStorage.getItem('banks_cache') || '[]'); }
+    catch { return []; }
+  }
+}
+
+function loadBanksFromCache() {
+  try { return JSON.parse(localStorage.getItem('banks_cache') || '[]'); }
   catch { return []; }
 }
-function saveBanks(banks) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(banks));
-}
+
+// Note: saveBanks no longer used for local storage; banks.json on GitHub is the source of truth
+// Records and wrong data stay in localStorage (private per user)
 function loadRecords() {
   try { return JSON.parse(localStorage.getItem(RECORDS_KEY) || '[]'); }
   catch { return []; }
@@ -603,7 +630,6 @@ let userChoices = {}; // { questionId: chosenLetter }
 let quizFinished = false;
 let quizActive = false; // 是否有一个活跃的刷题会话
 
-let banks = loadBanks();
 let records = loadRecords();
 let wrongBook = loadWrong();
 
@@ -1239,13 +1265,22 @@ function hasQuizSession(bankId, mode) {
 
 // ==================== BANK MANAGEMENT ====================
 function deleteBank(id) {
+  const bank = banks.find(b => b.id === id);
+  if (!bank) return;
+  if (bank._shared && !localBankIds.has(id)) {
+    showToast('共享题库无法删除，只能删除自己上传的');
+    return;
+  }
   if (!confirm('确定删除这个题库吗？此操作不可撤销。')) return;
   banks = banks.filter(b => b.id !== id);
+  localBankIds.delete(id);
+  saveLocalBankIds();
   delete wrongBook[id];
   saveWrong(wrongBook);
   records = records.filter(r => r.bankId !== id);
   saveRecords(records);
-  saveBanks(banks);
+  const cached = loadBanksFromCache().filter(b => b.id !== id);
+  localStorage.setItem('banks_cache', JSON.stringify(cached));
 
   if (currentBankId === id) {
     currentBankId = null;
@@ -1256,7 +1291,7 @@ function deleteBank(id) {
 
 function handleFileUpload(file) {
   showToast('正在解析文档...');
-  parseDocx(file).then(result => {
+  parseDocx(file).then(async result => {
     if (result.questions.length === 0) {
       showToast('未能从文档中识别到选择题，请检查格式（题干+括号内答案+ABCD选项）');
       return;
@@ -1267,13 +1302,44 @@ function handleFileUpload(file) {
       questions: result.questions,
       createdAt: new Date().toISOString()
     };
+    // Add to local list immediately
     banks.unshift(bank);
-    saveBanks(banks);
+    localBankIds.add(bank.id);
+    saveLocalBankIds();
     currentBankId = bank.id;
     renderSidebar();
     showView('preview');
     previewBank(bank.id);
     showToast(`成功导入 ${result.questions.length} 道选择题`);
+
+    // Try to upload to shared banks
+    try {
+      const resp = await fetch(UPLOAD_FUNCTION_URL, {
+        method: 'POST',
+        body: JSON.stringify({ name: bank.name, questions: bank.questions }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (resp.ok) {
+        showToast('题库已同步到共享库');
+        // Refresh banks from shared source
+        const sharedBanks = await fetchSharedBanks();
+        const merged = [...sharedBanks];
+        for (const b of banks) {
+          if (b._local && !merged.find(mb => mb.id === b.id)) {
+            merged.unshift(b);
+          }
+        }
+        banks = merged;
+        renderSidebar();
+      }
+    } catch {
+      // Offline: save to local cache
+      bank._local = true;
+      const cached = loadBanksFromCache().filter(b => b.id !== bank.id);
+      cached.unshift(bank);
+      localStorage.setItem('banks_cache', JSON.stringify(cached));
+      showToast('离线模式：题库已保存到本地');
+    }
   }).catch(err => {
     console.error(err);
     showToast('解析失败，请确认文件为 .docx 格式');
@@ -1373,20 +1439,35 @@ document.addEventListener('keydown', function(e) {
 });
 
 // ==================== INIT ====================
-initTheme();
-renderSidebar();
-// Try to restore last active quiz session
-(function tryRestoreSession() {
-  for (const bank of banks) {
-    for (const mode of ['sequential', 'random', 'wrong']) {
-      if (loadQuizSession(bank.id, mode)) {
-        renderSidebar();
-        return;
-      }
+async function initApp() {
+  initTheme();
+  loadLocalBankIds();
+  const sharedBanks = await fetchSharedBanks();
+  const cachedBanks = loadBanksFromCache();
+  // Merge: shared banks + cached banks that aren't already in shared
+  const merged = [...sharedBanks];
+  for (const cb of cachedBanks) {
+    if (cb._local && !merged.find(b => b.id === cb.id)) {
+      merged.unshift(cb);
     }
   }
-})();
-renderWelcome();
+  banks = merged;
+  // If no banks at all, show welcome
+  renderSidebar();
+  // Try to restore last active quiz session
+  (function tryRestoreSession() {
+    for (const bank of banks) {
+      for (const mode of ['sequential', 'random', 'wrong']) {
+        if (loadQuizSession(bank.id, mode)) {
+          renderSidebar();
+          return;
+        }
+      }
+    }
+  })();
+  renderWelcome();
+}
+initApp();
 </script>
 
 </body>
