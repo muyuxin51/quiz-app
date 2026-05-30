@@ -460,6 +460,7 @@ body {
   <div style="display:flex;align-items:center;gap:12px;">
     <button class="btn-icon sidebar-toggle" onclick="toggleSidebar()" title="菜单">☰</button>
     <h1>刷题助手</h1>
+    <span style="font-size:12px;color:var(--text-secondary);margin-left:16px;" id="visitorCount"></span>
   </div>
   <div class="header-actions">
     <button class="btn-icon" onclick="toggleTheme()" title="切换主题" id="themeBtn">🌙</button>
@@ -1594,9 +1595,25 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
+// ==================== VISITOR COUNTER ====================
+async function initVisitorCounter() {
+  const el = document.getElementById('visitorCount');
+  if (!el) return;
+  const NS = 'quiz-app-5151';
+  try {
+    const r = await fetch('https://api.countapi.xyz/hit/' + NS + '/visits');
+    const d = await r.json();
+    const total = d.value;
+    el.textContent = '👁 ' + total + ' 次访问';
+  } catch {
+    el.textContent = '';
+  }
+}
+
 // ==================== INIT ====================
 async function initApp() {
   initTheme();
+  initVisitorCounter();
   loadLocalBankIds();
   // Show banks immediately from local cache
   banks = loadLocalBanks();
