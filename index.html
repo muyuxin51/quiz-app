@@ -1445,35 +1445,27 @@ document.addEventListener('keydown', function(e) {
 async function initApp() {
   initTheme();
   loadLocalBankIds();
-  // Start with local banks (survive refresh)
-  const localBanks = loadLocalBanks();
-  // Fetch shared banks from GitHub as supplement
-  const sharedBanks = await fetchSharedBanks();
-  const deletedIds = getDeletedBankIds();
-  // Merge: local first, then shared banks not already in local and not deleted
-  const merged = [...localBanks];
-  for (const sb of sharedBanks) {
-    if (!merged.find(b => b.id === sb.id) && !deletedIds.has(sb.id)) {
-      merged.push(sb);
-    }
-  }
-  banks = merged;
-  // Save merged list back to local so cache stays fresh
-  saveLocalBanks(banks);
-  // If no banks at all, show welcome
+  // Show banks immediately from local cache
+  banks = loadLocalBanks();
   renderSidebar();
-  // Try to restore last active quiz session
-  (function tryRestoreSession() {
-    for (const bank of banks) {
-      for (const mode of ['sequential', 'random', 'wrong']) {
-        if (loadQuizSession(bank.id, mode)) {
-          renderSidebar();
-          return;
-        }
+  renderWelcome();
+
+  // Fetch shared banks from GitHub in background
+  const sharedBanks = await fetchSharedBanks();
+  if (sharedBanks.length > 0) {
+    const deletedIds = getDeletedBankIds();
+    const localBanks = loadLocalBanks();
+    const merged = [...localBanks];
+    for (const sb of sharedBanks) {
+      if (!merged.find(b => b.id === sb.id) && !deletedIds.has(sb.id)) {
+        merged.push(sb);
       }
     }
-  })();
-  renderWelcome();
+    banks = merged;
+    saveLocalBanks(banks);
+    renderSidebar();
+    if (currentView === 'welcome') renderWelcome();
+  }
 }
 initApp();
 </script>
