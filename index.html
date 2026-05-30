@@ -257,6 +257,18 @@ body {
 }
 .question-num { font-weight: 700; color: var(--primary); margin-bottom: 12px; font-size: 14px; }
 .question-stem { font-size: 16px; line-height: 1.8; margin-bottom: 20px; }
+.question-stem pre {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-x: auto;
+  margin: 8px 0;
+  white-space: pre-wrap;
+}
 
 /* Option buttons */
 .options-list { display:flex; flex-direction:column; gap:10px; }
@@ -495,9 +507,9 @@ const RECORDS_KEY = 'quiz_records';
 const WRONG_KEY = 'quiz_wrong';
 const THEME_KEY = 'quiz_theme';
 const SHARED_BANKS_URLS = [
-  'https://cdn.jsdelivr.net/gh/muyuxin51/quiz-app@ca4e84b/banks.json',
-  'https://cdn.jsdelivr.net/gh/muyuxin51/quiz-app@ca4e84b/banks2.json',
-  'https://cdn.jsdelivr.net/gh/muyuxin51/quiz-app@ca4e84b/banks-mixed.json'
+  'https://cdn.jsdelivr.net/gh/muyuxin51/quiz-app@ac83e6e/banks.json',
+  'https://cdn.jsdelivr.net/gh/muyuxin51/quiz-app@ac83e6e/banks2.json',
+  'https://cdn.jsdelivr.net/gh/muyuxin51/quiz-app@ac83e6e/banks-mixed.json'
 ];
 
 let banks = []; // Merged shared banks
