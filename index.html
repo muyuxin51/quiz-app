@@ -492,6 +492,17 @@ function saveLocalBankIds() {
   localStorage.setItem('local_bank_ids', JSON.stringify([...localBankIds]));
 }
 
+// ==================== DELETED BANKS TRACKING ====================
+function getDeletedBankIds() {
+  try { return new Set(JSON.parse(localStorage.getItem('deleted_bank_ids') || '[]')); }
+  catch { return new Set(); }
+}
+function addDeletedBankId(id) {
+  const ids = getDeletedBankIds();
+  ids.add(id);
+  localStorage.setItem('deleted_bank_ids', JSON.stringify([...ids]));
+}
+
 // ==================== BANKS PERSISTENCE ====================
 // Local storage is the primary bank store — survives refreshes.
 // Shared banks from GitHub are merged in as a supplement on page load.
@@ -1298,6 +1309,8 @@ function deleteBank(id) {
   records = records.filter(r => r.bankId !== id);
   saveRecords(records);
   saveLocalBanks(banks);
+  // Remember deleted bank so it doesn't come back from shared source
+  addDeletedBankId(id);
 
   if (currentBankId === id) {
     currentBankId = null;
@@ -1436,10 +1449,11 @@ async function initApp() {
   const localBanks = loadLocalBanks();
   // Fetch shared banks from GitHub as supplement
   const sharedBanks = await fetchSharedBanks();
-  // Merge: local first, then shared banks not already in local
+  const deletedIds = getDeletedBankIds();
+  // Merge: local first, then shared banks not already in local and not deleted
   const merged = [...localBanks];
   for (const sb of sharedBanks) {
-    if (!merged.find(b => b.id === sb.id)) {
+    if (!merged.find(b => b.id === sb.id) && !deletedIds.has(sb.id)) {
       merged.push(sb);
     }
   }
