@@ -841,22 +841,9 @@ function renderQuiz() {
     <div class="quiz-body">
       <div class="quiz-main">
         <div class="question-card">
-          <div class="question-num">第 ${quizIndex + 1} 题</div>
+          <div class="question-num">第 ${quizIndex + 1} 题 · ${getTypeLabel(q)}</div>
           <div class="question-stem">${escapeHtml(q.display)}</div>
-          <div class="options-list">
-            ${q.options.map(opt => {
-              let optClass = '';
-              if (chosen) {
-                if (chosen === opt.letter && chosen === q.answer) optClass = 'selected-correct';
-                else if (chosen === opt.letter && chosen !== q.answer) optClass = 'selected-wrong';
-                else if (opt.letter === q.answer) optClass = 'show-correct';
-              }
-              return `<button class="option-btn ${optClass}" ${chosen ? 'disabled' : ''} onclick="chooseOption('${q.id}','${opt.letter}')">
-                <span class="opt-letter">${opt.letter}</span>
-                <span>${escapeHtml(opt.text)}</span>
-              </button>`;
-            }).join('')}
-          </div>
+          ${renderAnswerArea(q, chosen)}
           ${chosen ? renderFeedback(q, chosen) : ''}
           ${quizMode === 'wrong' ? `<button class="btn btn-danger btn-sm" style="margin-top:8px;" onclick="removeWrongFromQuiz('${q.id}')">移出错题本</button>` : ''}
         </div>
@@ -866,6 +853,7 @@ function renderQuiz() {
     <div class="quiz-actions">
       ${chosen ? `<button class="btn btn-primary" onclick="nextQuestion()">${quizIndex < total - 1 ? '下一题 →' : '查看结果'}</button>` : ''}
       ${quizIndex > 0 ? `<button class="btn btn-outline" onclick="prevQuestion()">← 上一题</button>` : ''}
+      ${!chosen && (q.type === 'short') ? `<button class="btn btn-outline" onclick="showShortAnswer('${q.id}')">显示答案</button>` : ''}
       <button class="btn btn-outline" onclick="restartQuiz()">🔄 重新开始</button>
       <button class="btn btn-outline" onclick="exitQuiz()">退出刷题</button>
     </div>
@@ -893,9 +881,13 @@ function jumpToQuestion(index) {
 }
 
 function countCorrect() {
-  return Object.entries(userChoices).filter(([qId, letter]) => {
+  return Object.entries(userChoices).filter(([qId, chosen]) => {
     const q = quizQuestions.find(q => q.id === qId);
-    return q && letter === q.answer;
+    if (!q) return false;
+    const t = q.type || 'mcq';
+    if (t === 'short') return true;
+    if (t === 'fill') return chosen === q.answer || (q.answer && q.answer.split('/').some(a => chosen === a.trim()));
+    return chosen === q.answer;
   }).length;
 }
 
@@ -944,8 +936,112 @@ function goBack() {
   }
 }
 
+function getTypeLabel(q) {
+  const t = q.type || 'mcq';
+  const labels = { mcq: '选择题', fill: '填空题', tf: '判断题', short: '简答题' };
+  return labels[t] || '';
+}
+
+function renderAnswerArea(q, chosen) {
+  const t = q.type || 'mcq';
+
+  if (t === 'tf') {
+    // True/False buttons
+    const isRight = chosen === '√';
+    const isWrong = chosen === '×';
+    return `<div class="options-list">
+      <button class="option-btn ${isRight ? 'selected-correct' : ''} ${!chosen ? '' : q.answer === '√' ? 'show-correct' : ''}" ${chosen ? 'disabled' : ''} onclick="submitTF('${q.id}','√')"><span class="opt-letter">√</span><span>正确</span></button>
+      <button class="option-btn ${isWrong ? 'selected-wrong' : ''} ${!chosen ? '' : q.answer === '×' ? 'show-correct' : ''}" ${chosen ? 'disabled' : ''} onclick="submitTF('${q.id}','×')"><span class="opt-letter">×</span><span>错误</span></button>
+    </div>`;
+  }
+
+  if (t === 'fill') {
+    if (chosen) {
+      return `<div style="margin-top:8px;padding:10px;background:var(--bg);border-radius:6px;">你的答案：<strong>${escapeHtml(chosen)}</strong></div>`;
+    }
+    const fid = `fill_${q.id}`;
+    return `<div class="options-list">
+      <input class="question-input" id="${fid}" placeholder="输入你的答案" style="width:100%;padding:10px;font-size:16px;text-align:left;border:2px solid var(--primary);border-radius:8px;">
+      <button class="btn btn-primary" style="margin-top:8px;" onclick="submitFill('${q.id}')">提交</button>
+    </div>`;
+  }
+
+  if (t === 'short') {
+    if (chosen) {
+      return `<div style="margin-top:12px;padding:12px;background:var(--bg);border-radius:6px;"><strong>参考答案：</strong><div style="margin-top:6px;white-space:pre-wrap;line-height:1.7;">${escapeHtml(q.answer || '')}</div></div>`;
+    }
+    return '';
+  }
+
+  // Default: MCQ
+  return `<div class="options-list">
+    ${q.options.map(opt => {
+      let optClass = '';
+      if (chosen) {
+        if (chosen === opt.letter && chosen === q.answer) optClass = 'selected-correct';
+        else if (chosen === opt.letter && chosen !== q.answer) optClass = 'selected-wrong';
+        else if (opt.letter === q.answer) optClass = 'show-correct';
+      }
+      return `<button class="option-btn ${optClass}" ${chosen ? 'disabled' : ''} onclick="chooseOption('${q.id}','${opt.letter}')">
+        <span class="opt-letter">${opt.letter}</span><span>${escapeHtml(opt.text)}</span>
+      </button>`;
+    }).join('')}
+  </div>`;
+}
+
+function submitTF(qId, answer) {
+  if (userChoices[qId]) return;
+  userChoices[qId] = answer;
+  const q = quizQuestions[quizIndex];
+  updateWrongBook(q, q.answer === answer);
+  saveQuizSession();
+  renderQuiz();
+}
+
+function submitFill(qId) {
+  if (userChoices[qId]) return;
+  const input = document.getElementById('fill_' + qId);
+  if (!input) return;
+  const val = input.value.trim();
+  if (!val) return;
+  userChoices[qId] = val;
+  const q = quizQuestions[quizIndex];
+  // Loose comparison for fill-in-blank
+  const isCorrect = val === q.answer || q.answer.split('/').some(a => val === a.trim());
+  updateWrongBook(q, isCorrect);
+  saveQuizSession();
+  renderQuiz();
+}
+
+function showShortAnswer(qId) {
+  if (userChoices[qId]) return;
+  userChoices[qId] = '已查看';
+  const q = quizQuestions[quizIndex];
+  updateWrongBook(q, true); // Short answers count as correct since user self-grades
+  saveQuizSession();
+  renderQuiz();
+}
+
 function renderFeedback(q, chosen) {
-  const isCorrect = chosen === q.answer;
+  const t = q.type || 'mcq';
+  if (t === 'short') return '';
+
+  let isCorrect;
+  if (t === 'fill') {
+    isCorrect = chosen === q.answer || (q.answer && q.answer.split('/').some(a => chosen === a.trim()));
+  } else if (t === 'tf') {
+    isCorrect = chosen === q.answer;
+  } else {
+    isCorrect = chosen === q.answer;
+  }
+
+  if (isCorrect) {
+    return `<div class="quiz-feedback correct">✅ 回答正确！${q.answerDetail ? '<br><small>💡 ' + escapeHtml(q.answerDetail) + '</small>' : ''}</div>`;
+  } else {
+    const correctAns = t === 'mcq' ? q.answer : q.answer;
+    return `<div class="quiz-feedback wrong">❌ 回答错误！正确答案是 <strong>${escapeHtml(correctAns)}</strong>${q.answerDetail ? '<br><small>💡 ' + escapeHtml(q.answerDetail) + '</small>' : ''}</div>`;
+  }
+}
   if (isCorrect) {
     return `<div class="quiz-feedback correct">✅ 回答正确！</div>`;
   } else {
@@ -1009,10 +1105,7 @@ function showQuizResult() {
   quizActive = false;
   clearQuizSession(currentBankId, quizMode);
   const total = quizQuestions.length;
-  const correctCount = Object.entries(userChoices).filter(([qId, letter]) => {
-    const q = quizQuestions.find(q => q.id === qId);
-    return q && letter === q.answer;
-  }).length;
+  const correctCount = countCorrect();
   const score = total > 0 ? Math.round((correctCount / total) * 100) : 0;
   const bank = getCurrentBank();
 
@@ -1446,10 +1539,22 @@ document.addEventListener('keydown', function(e) {
   const q = quizQuestions[quizIndex];
   if (!q) return;
   const chosen = userChoices[q.id];
+  const t = q.type || 'mcq';
 
-  if (!chosen && ['A', 'B', 'C', 'D'].includes(e.key.toUpperCase())) {
-    e.preventDefault();
-    chooseOption(q.id, e.key.toUpperCase());
+  if (!chosen) {
+    if (t === 'mcq' && ['A', 'B', 'C', 'D'].includes(e.key.toUpperCase())) {
+      e.preventDefault();
+      chooseOption(q.id, e.key.toUpperCase());
+    } else if (t === 'tf' && (e.key.toUpperCase() === 'V' || e.key === '√' || e.key === '×')) {
+      e.preventDefault();
+      submitTF(q.id, e.key === '×' ? '×' : '√');
+    } else if (t === 'fill' && e.key === 'Enter') {
+      e.preventDefault();
+      submitFill(q.id);
+    } else if (t === 'short' && e.key === 'Enter') {
+      e.preventDefault();
+      showShortAnswer(q.id);
+    }
   } else if (chosen && (e.key === 'Enter' || e.key === 'ArrowRight')) {
     e.preventDefault();
     nextQuestion();
