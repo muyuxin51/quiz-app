@@ -493,7 +493,11 @@ body {
 const RECORDS_KEY = 'quiz_records';
 const WRONG_KEY = 'quiz_wrong';
 const THEME_KEY = 'quiz_theme';
-const SHARED_BANKS_URL = 'https://raw.githubusercontent.com/muyuxin51/quiz-app/master/banks.json';
+const SHARED_BANKS_URLS = [
+  'https://raw.githubusercontent.com/muyuxin51/quiz-app/master/banks.json',
+  'https://raw.githubusercontent.com/muyuxin51/quiz-app/master/banks2.json',
+  'https://raw.githubusercontent.com/muyuxin51/quiz-app/master/banks-mixed.json'
+];
 
 let banks = []; // Merged shared banks
 let localBankIds = new Set(); // Track which banks this user uploaded
@@ -545,14 +549,19 @@ function saveBankToLocal(bank) {
 }
 
 async function fetchSharedBanks() {
-  try {
-    const resp = await fetch(SHARED_BANKS_URL + '?t=' + Date.now());
-    if (resp.ok) {
-      const shared = await resp.json();
-      shared.forEach(b => { b._shared = true; });
-      return shared;
-    }
-  } catch {}
+  const results = await Promise.all(SHARED_BANKS_URLS.map(async url => {
+    try {
+      const resp = await fetch(url + '?t=' + Date.now());
+      if (resp.ok) {
+        const banks = await resp.json();
+        banks.forEach(b => { b._shared = true; });
+        return banks;
+      }
+    } catch {}
+    return [];
+  }));
+  const all = results.flat();
+  if (all.length > 0) return all;
   return [];
 }
 
