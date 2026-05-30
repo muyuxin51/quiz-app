@@ -225,8 +225,20 @@ body {
   flex-shrink: 0;
 }
 @media (max-width: 600px) {
-  .quiz-body { flex-direction: column-reverse; }
-  .q-overview { width: 100%; max-height: none; position: static; grid-template-columns: repeat(5, 1fr); }
+  .quiz-body { flex-direction: column; }
+  .q-overview {
+    width: 100%;
+    max-height: 110px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    position: static;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 4px;
+    padding: 8px;
+  }
+  .q-overview-item { flex-shrink: 0; }
   .quiz-actions { position: sticky; bottom: 0; background: var(--bg); padding: 12px 0; z-index: 10; }
 }
 .q-overview-item:hover { border-color: var(--primary); transform: scale(1.1); }
