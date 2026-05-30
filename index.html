@@ -901,6 +901,10 @@ function jumpToQuestion(index) {
   quizIndex = index;
   saveQuizSession();
   renderQuiz();
+  setTimeout(() => {
+    const card = document.querySelector('.question-card');
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
 }
 
 function countCorrect() {
@@ -1111,6 +1115,13 @@ function updateWrongBook(q, isCorrect) {
   saveWrong(wrongBook);
 }
 
+function scrollToCard() {
+  setTimeout(() => {
+    const card = document.querySelector('.question-card');
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+}
+
 function nextQuestion() {
   if (quizIndex < quizQuestions.length - 1) {
     quizIndex++;
@@ -1118,12 +1129,14 @@ function nextQuestion() {
     quizFinished = true;
   }
   renderQuiz();
+  scrollToCard();
 }
 
 function prevQuestion() {
   if (quizIndex > 0) {
     quizIndex--;
     renderQuiz();
+    scrollToCard();
   }
 }
 
