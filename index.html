@@ -460,7 +460,6 @@ body {
   <div style="display:flex;align-items:center;gap:12px;">
     <button class="btn-icon sidebar-toggle" onclick="toggleSidebar()" title="菜单">☰</button>
     <h1>刷题助手</h1>
-    <span style="font-size:12px;color:var(--text-secondary);margin-left:16px;" id="onlineCount"></span>
   </div>
   <div class="header-actions">
     <button class="btn-icon" onclick="toggleTheme()" title="切换主题" id="themeBtn">🌙</button>
@@ -1608,94 +1607,10 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
-// ==================== ONLINE COUNTER ====================
-const ONLINE_FILE = 'online.json';
-let sessionId = sessionStorage.getItem('online_sid');
-if (!sessionId) {
-  sessionId = 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  sessionStorage.setItem('online_sid', sessionId);
-}
-const HEARTBEAT = 60000;
-const SESSION_TTL = 180000; // 3 min TTL
-const GH_API = 'https://api.github.com/repos/muyuxin51/quiz-app/contents/' + ONLINE_FILE;
-const GH_TOKEN = ['g','h','p','_','C','U','4','k','s','Y','I','k','G','f','H','3','n','M','P','u','Y','I','O','F','m','K','o','N','x','a','J','p','h','H','2','9','d','S','3','O'].join('');
-
-async function readOnline() {
-  // Read from raw URL (fast, no auth needed)
-  try {
-    const r = await fetch('https://raw.githubusercontent.com/muyuxin51/quiz-app/master/' + ONLINE_FILE + '?t=' + Date.now());
-    if (r.ok) return await r.json();
-  } catch(e) {}
-  return { sessions: {} };
-}
-
-async function writeOnline(data, sha) {
-  const content = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-  const body = { message: 'update online', content: content, branch: 'master' };
-  if (sha) body.sha = sha;
-  return fetch(GH_API, {
-    method: 'PUT',
-    headers: { 'Authorization': 'token ' + GH_TOKEN, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-}
-
-async function updateOnline() {
-  try {
-    // Read current file
-    const r = await fetch(GH_API + '?ref=master&t=' + Date.now(), { cache: 'no-store' });
-    if (!r.ok) return;
-    const j = await r.json();
-    const content = JSON.parse(decodeURIComponent(escape(atob(j.content))));
-    const sha = j.sha;
-    if (!content.sessions) content.sessions = {};
-
-    // Clean stale sessions (>90s) and add/update self
-    const now = Date.now();
-    const cleaned = {};
-    for (const [id, ts] of Object.entries(content.sessions)) {
-      if (now - ts < SESSION_TTL) cleaned[id] = ts;
-    }
-    cleaned[sessionId] = now;
-    const active = Object.keys(cleaned).length;
-
-    // Update display
-    const el = document.getElementById('onlineCount');
-    if (el) el.textContent = '🟢 ' + active + ' 人在线';
-
-    // Write back
-    await writeOnline({ sessions: cleaned }, sha);
-  } catch(e) {
-    // Silent fail - will retry on next heartbeat
-  }
-}
-
-function startOnlineTracker() {
-  // Random initial delay to avoid thundering herd
-  setTimeout(() => {
-    updateOnline();
-    setInterval(updateOnline, HEARTBEAT + Math.random() * 10000);
-  }, Math.random() * 5000);
-  window.addEventListener('beforeunload', async () => {
-    try {
-      const data = await readOnline();
-      if (data.sessions) {
-        delete data.sessions[sessionId];
-        const r = await fetch(GH_API + '?ref=master');
-        const j = await r.json();
-        const content = btoa(unescape(encodeURIComponent(JSON.stringify({ sessions: data.sessions }))));
-        navigator.sendBeacon(GH_API, new Blob([JSON.stringify({
-          message: 'offline', content: content, branch: 'master', sha: j.sha
-        })], { type: 'application/json' }));
-      }
-    } catch(e) {}
-  });
-}
 
 // ==================== INIT ====================
 async function initApp() {
   initTheme();
-  startOnlineTracker();
   loadLocalBankIds();
   // Show banks immediately from local cache
   banks = loadLocalBanks();
