@@ -480,7 +480,6 @@ const RECORDS_KEY = 'quiz_records';
 const WRONG_KEY = 'quiz_wrong';
 const THEME_KEY = 'quiz_theme';
 const SHARED_BANKS_URL = 'https://raw.githubusercontent.com/muyuxin51/quiz-app/master/banks.json';
-const UPLOAD_FUNCTION_URL = '/.netlify/functions/upload-bank';
 
 let banks = []; // Merged shared banks
 let localBankIds = new Set(); // Track which banks this user uploaded
@@ -494,7 +493,6 @@ function saveLocalBankIds() {
 }
 
 async function fetchSharedBanks() {
-  // Try GitHub raw first
   try {
     const resp = await fetch(SHARED_BANKS_URL + '?t=' + Date.now());
     if (resp.ok) {
@@ -503,16 +501,7 @@ async function fetchSharedBanks() {
       return shared;
     }
   } catch {}
-  // Fallback: Netlify Function
-  try {
-    const resp = await fetch('/.netlify/functions/get-banks');
-    if (resp.ok) {
-      const shared = await resp.json();
-      shared.forEach(b => { b._shared = true; });
-      return shared;
-    }
-  } catch {}
-  // Final fallback: local cache
+  // Fallback: local cache
   try { return JSON.parse(localStorage.getItem('banks_cache') || '[]'); }
   catch { return []; }
 }
@@ -1297,13 +1286,6 @@ function deleteBank(id) {
   const cached = loadBanksFromCache().filter(b => b.id !== id);
   localStorage.setItem('banks_cache', JSON.stringify(cached));
 
-  // Delete from shared banks on GitHub
-  fetch('/.netlify/functions/delete-bank', {
-    method: 'POST',
-    body: JSON.stringify({ bankId: id }),
-    headers: { 'Content-Type': 'application/json' }
-  }).catch(() => {});
-
   if (currentBankId === id) {
     currentBankId = null;
     showView('welcome');
@@ -1337,21 +1319,7 @@ function handleFileUpload(file) {
     previewBank(bank.id);
     showToast(`成功导入 ${result.questions.length} 道选择题`);
 
-    // Try to upload to shared banks via Netlify Function
-    try {
-      const resp = await fetch(UPLOAD_FUNCTION_URL, {
-        method: 'POST',
-        body: JSON.stringify({ name: bank.name, questions: bank.questions }),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (resp.ok) {
-        showToast('题库已同步到共享库');
-        bank._local = false;
-        saveBankToCache(bank);
-      }
-    } catch {
-      showToast('题库已保存到本地（共享功能暂时不可用）');
-    }
+    showToast(`成功导入 ${result.questions.length} 道选择题`);
   }).catch(err => {
     console.error(err);
     showToast('解析失败，请确认文件为 .docx 格式');
