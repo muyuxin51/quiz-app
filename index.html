@@ -513,6 +513,12 @@ function loadBanksFromCache() {
   catch { return []; }
 }
 
+function saveBankToCache(bank) {
+  const cached = loadBanksFromCache().filter(b => b.id !== bank.id);
+  cached.unshift(bank);
+  localStorage.setItem('banks_cache', JSON.stringify(cached));
+}
+
 // Note: saveBanks no longer used for local storage; banks.json on GitHub is the source of truth
 // Records and wrong data stay in localStorage (private per user)
 function loadRecords() {
@@ -1300,12 +1306,15 @@ function handleFileUpload(file) {
       id: 'b_' + Date.now(),
       name: result.name,
       questions: result.questions,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      _local: true
     };
     // Add to local list immediately
     banks.unshift(bank);
     localBankIds.add(bank.id);
     saveLocalBankIds();
+    // Always save to local cache
+    saveBankToCache(bank);
     currentBankId = bank.id;
     renderSidebar();
     showView('preview');
@@ -1321,23 +1330,11 @@ function handleFileUpload(file) {
       });
       if (resp.ok) {
         showToast('题库已同步到共享库');
-        // Refresh banks from shared source
-        const sharedBanks = await fetchSharedBanks();
-        const merged = [...sharedBanks];
-        for (const b of banks) {
-          if (b._local && !merged.find(mb => mb.id === b.id)) {
-            merged.unshift(b);
-          }
-        }
-        banks = merged;
-        renderSidebar();
+        // Remove _local flag from cache since it's now shared
+        bank._local = false;
+        saveBankToCache(bank);
       }
     } catch {
-      // Offline: save to local cache
-      bank._local = true;
-      const cached = loadBanksFromCache().filter(b => b.id !== bank.id);
-      cached.unshift(bank);
-      localStorage.setItem('banks_cache', JSON.stringify(cached));
       showToast('离线模式：题库已保存到本地');
     }
   }).catch(err => {
@@ -1444,10 +1441,10 @@ async function initApp() {
   loadLocalBankIds();
   const sharedBanks = await fetchSharedBanks();
   const cachedBanks = loadBanksFromCache();
-  // Merge: shared banks + cached banks that aren't already in shared
+  // Merge: shared banks + cached banks that user uploaded (not yet in shared)
   const merged = [...sharedBanks];
   for (const cb of cachedBanks) {
-    if (cb._local && !merged.find(b => b.id === cb.id)) {
+    if (!merged.find(b => b.id === cb.id)) {
       merged.unshift(cb);
     }
   }
