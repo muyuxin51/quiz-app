@@ -560,8 +560,10 @@ function extractQuestions(text) {
 
   // Match lines that start with a question number
   const numPattern = /^[\s]*[\(\（]?\s*\d+\s*[\)\）\.\、\．\s]+/;
-  // Match option lines: A. B. C. D. or A、 B、 etc.
-  const optPattern = /^([A-Da-d])[\.\、\s]\s*/;
+  // Match option lines: A. B. C. D. or A) B) A、 B、 etc.
+  const optPattern = /^([A-Da-d])[\.\、\)\s]\s*/;
+  // Match answer line: 答案：B or 答案: B
+  const answerLinePattern = /^答案[：:]\s*([A-Da-d])/i;
 
   let current = null;
 
@@ -579,39 +581,40 @@ function extractQuestions(text) {
       let body = line.replace(numPattern, '').trim();
       if (!body) continue;
 
-      // Extract answer from brackets: （  A  ） or (A) etc.
+      // Try to extract answer from brackets: （  A  ） or (A) etc.
       let cnMatch = body.match(/（\s*([A-Da-d])\s*）/);
       let enMatch = body.match(/\(\s*([A-Da-d])\s*\)/);
       let answer = cnMatch ? cnMatch[1].toUpperCase() : (enMatch ? enMatch[1].toUpperCase() : null);
-      if (!answer) continue;
 
-      // Remove answer from display text (replace with  )
       let display = body;
-      display = display.replace(/（\s*[A-Da-d]\s*）/g, '（  ）');
-      display = display.replace(/\(\s*[A-Da-d]\s*\)/g, '(  )');
+      if (answer) {
+        display = display.replace(/（\s*[A-Da-d]\s*）/g, '（  ）');
+        display = display.replace(/\(\s*[A-Da-d]\s*\)/g, '(  )');
+      }
 
       current = {
         id: 'q_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
         original: body,
         display: display,
-        answer: answer,
+        answer: answer, // may be null, will be filled from 答案 line
         options: []
       };
+    } else if (current && !current.answer && answerLinePattern.test(line)) {
+      // Extract answer from 答案：X line
+      const am = line.match(answerLinePattern);
+      current.answer = am[1].toUpperCase();
     } else if (current && optPattern.test(line)) {
       const m = line.match(optPattern);
       const letter = m[1].toUpperCase();
       const text = line.replace(optPattern, '').trim();
 
-      // Handle inline multi-options: "A. xxx B. xxx C. xxx D. xxx"
-      // Split by option prefix pattern
-      const remainingParts = text.split(/\s+(?=[A-Da-d][\.\、\s])/);
+      // Handle inline multi-options
+      const remainingParts = text.split(/\s+(?=[A-Da-d][\.\、\)\s])/);
       if (remainingParts.length > 1) {
-        // First part belongs to current letter
         current.options.push({ letter, text: remainingParts[0].trim() });
-        // Remaining parts are more options
         for (let i = 1; i < remainingParts.length; i++) {
           const part = remainingParts[i].trim();
-          const pm = part.match(/^([A-Da-d])[\.\、\s]\s*/);
+          const pm = part.match(/^([A-Da-d])[\.\、\)\s]\s*/);
           if (pm) {
             current.options.push({ letter: pm[1].toUpperCase(), text: part.replace(pm[0], '').trim() });
           }
@@ -623,7 +626,8 @@ function extractQuestions(text) {
   }
 
   saveCurrent();
-  return questions;
+  // Filter out questions without answers
+  return questions.filter(q => q.answer);
 }
 
 // ==================== APP STATE ====================
