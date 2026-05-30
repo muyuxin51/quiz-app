@@ -492,6 +492,33 @@ function saveLocalBankIds() {
   localStorage.setItem('local_bank_ids', JSON.stringify([...localBankIds]));
 }
 
+// ==================== BANKS PERSISTENCE ====================
+// Local storage is the primary bank store — survives refreshes.
+// Shared banks from GitHub are merged in as a supplement on page load.
+
+function loadLocalBanks() {
+  try { return JSON.parse(localStorage.getItem('quiz_banks_local') || '[]'); }
+  catch { return []; }
+}
+
+function saveLocalBanks(banksArr) {
+  try {
+    localStorage.setItem('quiz_banks_local', JSON.stringify(banksArr));
+  } catch (e) {
+    // localStorage full — try to trim
+    if (banksArr.length > 5) {
+      const trimmed = banksArr.slice(0, 5);
+      localStorage.setItem('quiz_banks_local', JSON.stringify(trimmed));
+    }
+  }
+}
+
+function saveBankToLocal(bank) {
+  const local = loadLocalBanks().filter(b => b.id !== bank.id);
+  local.unshift(bank);
+  saveLocalBanks(local);
+}
+
 async function fetchSharedBanks() {
   try {
     const resp = await fetch(SHARED_BANKS_URL + '?t=' + Date.now());
@@ -501,20 +528,7 @@ async function fetchSharedBanks() {
       return shared;
     }
   } catch {}
-  // Fallback: local cache
-  try { return JSON.parse(localStorage.getItem('banks_cache') || '[]'); }
-  catch { return []; }
-}
-
-function loadBanksFromCache() {
-  try { return JSON.parse(localStorage.getItem('banks_cache') || '[]'); }
-  catch { return []; }
-}
-
-function saveBankToCache(bank) {
-  const cached = loadBanksFromCache().filter(b => b.id !== bank.id);
-  cached.unshift(bank);
-  localStorage.setItem('banks_cache', JSON.stringify(cached));
+  return [];
 }
 
 // Note: saveBanks no longer used for local storage; banks.json on GitHub is the source of truth
@@ -1283,8 +1297,7 @@ function deleteBank(id) {
   saveWrong(wrongBook);
   records = records.filter(r => r.bankId !== id);
   saveRecords(records);
-  const cached = loadBanksFromCache().filter(b => b.id !== id);
-  localStorage.setItem('banks_cache', JSON.stringify(cached));
+  saveLocalBanks(banks);
 
   if (currentBankId === id) {
     currentBankId = null;
@@ -1311,14 +1324,11 @@ function handleFileUpload(file) {
     banks.unshift(bank);
     localBankIds.add(bank.id);
     saveLocalBankIds();
-    // Always save to local cache
-    saveBankToCache(bank);
+    saveBankToLocal(bank);
     currentBankId = bank.id;
     renderSidebar();
     showView('preview');
     previewBank(bank.id);
-    showToast(`成功导入 ${result.questions.length} 道选择题`);
-
     showToast(`成功导入 ${result.questions.length} 道选择题`);
   }).catch(err => {
     console.error(err);
@@ -1422,16 +1432,20 @@ document.addEventListener('keydown', function(e) {
 async function initApp() {
   initTheme();
   loadLocalBankIds();
+  // Start with local banks (survive refresh)
+  const localBanks = loadLocalBanks();
+  // Fetch shared banks from GitHub as supplement
   const sharedBanks = await fetchSharedBanks();
-  const cachedBanks = loadBanksFromCache();
-  // Merge: shared banks + cached banks that user uploaded (not yet in shared)
-  const merged = [...sharedBanks];
-  for (const cb of cachedBanks) {
-    if (!merged.find(b => b.id === cb.id)) {
-      merged.unshift(cb);
+  // Merge: local first, then shared banks not already in local
+  const merged = [...localBanks];
+  for (const sb of sharedBanks) {
+    if (!merged.find(b => b.id === sb.id)) {
+      merged.push(sb);
     }
   }
   banks = merged;
+  // Save merged list back to local so cache stays fresh
+  saveLocalBanks(banks);
   // If no banks at all, show welcome
   renderSidebar();
   // Try to restore last active quiz session
