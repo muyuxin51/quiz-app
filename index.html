@@ -1337,7 +1337,7 @@ function handleFileUpload(file) {
     previewBank(bank.id);
     showToast(`成功导入 ${result.questions.length} 道选择题`);
 
-    // Try to upload to shared banks
+    // Try to upload to shared banks via Netlify Function
     try {
       const resp = await fetch(UPLOAD_FUNCTION_URL, {
         method: 'POST',
@@ -1346,12 +1346,11 @@ function handleFileUpload(file) {
       });
       if (resp.ok) {
         showToast('题库已同步到共享库');
-        // Remove _local flag from cache since it's now shared
         bank._local = false;
         saveBankToCache(bank);
       }
     } catch {
-      showToast('离线模式：题库已保存到本地');
+      showToast('题库已保存到本地（共享功能暂时不可用）');
     }
   }).catch(err => {
     console.error(err);
