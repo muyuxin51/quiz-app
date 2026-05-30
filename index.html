@@ -1589,13 +1589,16 @@ async function initApp() {
   if (sharedBanks.length > 0) {
     const deletedIds = getDeletedBankIds();
     const localBanks = loadLocalBanks();
-    const merged = [...localBanks];
-    for (const sb of sharedBanks) {
-      if (!merged.find(b => b.id === sb.id) && !deletedIds.has(sb.id)) {
-        merged.push(sb);
+    // Shared banks always override local cached versions
+    const merged = [...sharedBanks];
+    for (const lb of localBanks) {
+      if (lb._local && !merged.find(b => b.id === lb.id)) {
+        merged.unshift(lb);
       }
     }
-    banks = merged;
+    // Remove deleted banks
+    const filtered = merged.filter(b => !deletedIds.has(b.id));
+    banks = filtered;
     saveLocalBanks(banks);
   }
   renderSidebar();
