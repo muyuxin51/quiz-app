@@ -460,7 +460,9 @@ body {
   <div style="display:flex;align-items:center;gap:12px;">
     <button class="btn-icon sidebar-toggle" onclick="toggleSidebar()" title="菜单">☰</button>
     <h1>刷题助手</h1>
-    <span style="font-size:12px;color:var(--text-secondary);margin-left:16px;" id="visitorCount"></span>
+    <span style="display:inline-flex;align-items:center;gap:4px;margin-left:12px;" id="visitorCount">
+      <img src="https://visitor-badge.laobi.icu/badge?page_id=muyuxin51.quiz-app&left_text=%E8%AE%BF%E9%97%AE&right_text=loading" alt="访问量" style="height:20px;">
+    </span>
   </div>
   <div class="header-actions">
     <button class="btn-icon" onclick="toggleTheme()" title="切换主题" id="themeBtn">🌙</button>
@@ -508,9 +510,9 @@ const RECORDS_KEY = 'quiz_records';
 const WRONG_KEY = 'quiz_wrong';
 const THEME_KEY = 'quiz_theme';
 const SHARED_BANKS_URLS = [
-  'https://cdn.jsdelivr.net/gh/muyuxin51/quiz-app@baad2e1/banks.json',
-  'https://cdn.jsdelivr.net/gh/muyuxin51/quiz-app@baad2e1/banks2.json',
-  'https://cdn.jsdelivr.net/gh/muyuxin51/quiz-app@baad2e1/banks-mixed.json'
+  'https://cdn.jsdelivr.net/gh/muyuxin51/quiz-app@50f1882/banks.json',
+  'https://cdn.jsdelivr.net/gh/muyuxin51/quiz-app@50f1882/banks2.json',
+  'https://cdn.jsdelivr.net/gh/muyuxin51/quiz-app@50f1882/banks-mixed.json'
 ];
 
 let banks = []; // Merged shared banks
@@ -1595,25 +1597,9 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
-// ==================== VISITOR COUNTER ====================
-async function initVisitorCounter() {
-  const el = document.getElementById('visitorCount');
-  if (!el) return;
-  const NS = 'quiz-app-5151';
-  try {
-    const r = await fetch('https://api.countapi.xyz/hit/' + NS + '/visits');
-    const d = await r.json();
-    const total = d.value;
-    el.textContent = '👁 ' + total + ' 次访问';
-  } catch {
-    el.textContent = '';
-  }
-}
-
 // ==================== INIT ====================
 async function initApp() {
   initTheme();
-  initVisitorCounter();
   loadLocalBankIds();
   // Show banks immediately from local cache
   banks = loadLocalBanks();
