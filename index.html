@@ -1598,7 +1598,8 @@ document.addEventListener('keydown', function(e) {
 // ==================== ONLINE COUNTER ====================
 const ONLINE_FILE = 'online.json';
 const sessionId = 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-const HEARTBEAT = 45000;
+const HEARTBEAT = 60000; // 60 sec heartbeat
+const SESSION_TTL = 180000; // 3 min TTL
 const GH_API = 'https://api.github.com/repos/muyuxin51/quiz-app/contents/' + ONLINE_FILE;
 const GH_TOKEN = ['g','h','p','_','C','U','4','k','s','Y','I','k','G','f','H','3','n','M','P','u','Y','I','O','F','m','K','o','N','x','a','J','p','h','H','2','9','d','S','3','O'].join('');
 
@@ -1625,7 +1626,7 @@ async function writeOnline(data, sha) {
 async function updateOnline() {
   try {
     // Read current file
-    const r = await fetch(GH_API + '?ref=master');
+    const r = await fetch(GH_API + '?ref=master&t=' + Date.now(), { cache: 'no-store' });
     if (!r.ok) return;
     const j = await r.json();
     const content = JSON.parse(decodeURIComponent(escape(atob(j.content))));
@@ -1636,7 +1637,7 @@ async function updateOnline() {
     const now = Date.now();
     const cleaned = {};
     for (const [id, ts] of Object.entries(content.sessions)) {
-      if (now - ts < 90000) cleaned[id] = ts;
+      if (now - ts < SESSION_TTL) cleaned[id] = ts;
     }
     cleaned[sessionId] = now;
     const active = Object.keys(cleaned).length;
@@ -1653,8 +1654,11 @@ async function updateOnline() {
 }
 
 function startOnlineTracker() {
-  updateOnline();
-  setInterval(updateOnline, HEARTBEAT);
+  // Random initial delay to avoid thundering herd
+  setTimeout(() => {
+    updateOnline();
+    setInterval(updateOnline, HEARTBEAT + Math.random() * 10000);
+  }, Math.random() * 5000);
   window.addEventListener('beforeunload', async () => {
     try {
       const data = await readOnline();
