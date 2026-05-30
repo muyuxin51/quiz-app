@@ -959,11 +959,18 @@ function goBack() {
 }
 
 function renderStem(text) {
-  // Escape HTML first, then restore safe tags
-  let escaped = escapeHtml(text);
-  escaped = escaped.replace(/&amp;lt;pre&amp;gt;/g, '<pre>');
-  escaped = escaped.replace(/&amp;lt;\/pre&amp;gt;/g, '</pre>');
-  return escaped;
+  // Replace ```code``` markers with <pre> blocks
+  let parts = text.split('```');
+  if (parts.length <= 1) return escapeHtml(text);
+  let result = '';
+  for (let i = 0; i < parts.length; i++) {
+    if (i % 2 === 0) {
+      result += escapeHtml(parts[i]);
+    } else {
+      result += '<pre>' + escapeHtml(parts[i]) + '</pre>';
+    }
+  }
+  return result;
 }
 
 function getTypeLabel(q) {
