@@ -507,9 +507,9 @@ const RECORDS_KEY = 'quiz_records';
 const WRONG_KEY = 'quiz_wrong';
 const THEME_KEY = 'quiz_theme';
 const SHARED_BANKS_URLS = [
-  'https://cdn.jsdelivr.net/gh/muyuxin51/quiz-app@be38529/banks.json',
-  'https://cdn.jsdelivr.net/gh/muyuxin51/quiz-app@be38529/banks2.json',
-  'https://cdn.jsdelivr.net/gh/muyuxin51/quiz-app@be38529/banks-mixed.json'
+  'https://cdn.jsdelivr.net/gh/muyuxin51/quiz-app@da6aa00/banks.json',
+  'https://cdn.jsdelivr.net/gh/muyuxin51/quiz-app@da6aa00/banks2.json',
+  'https://cdn.jsdelivr.net/gh/muyuxin51/quiz-app@da6aa00/banks-mixed.json'
 ];
 
 let banks = []; // Merged shared banks
@@ -864,7 +864,7 @@ function renderQuiz() {
       <div class="quiz-main">
         <div class="question-card">
           <div class="question-num">第 ${quizIndex + 1} 题 · ${getTypeLabel(q)}</div>
-          <div class="question-stem">${escapeHtml(q.display)}</div>
+          <div class="question-stem">${renderStem(q.display)}</div>
           ${renderAnswerArea(q, chosen)}
           ${chosen ? renderFeedback(q, chosen) : ''}
           ${quizMode === 'wrong' ? `<button class="btn btn-danger btn-sm" style="margin-top:8px;" onclick="removeWrongFromQuiz('${q.id}')">移出错题本</button>` : ''}
@@ -956,6 +956,14 @@ function goBack() {
     showView('welcome');
     renderSidebar();
   }
+}
+
+function renderStem(text) {
+  // Escape HTML first, then restore safe tags
+  let escaped = escapeHtml(text);
+  escaped = escaped.replace(/&amp;lt;pre&amp;gt;/g, '<pre>');
+  escaped = escaped.replace(/&amp;lt;\/pre&amp;gt;/g, '</pre>');
+  return escaped;
 }
 
 function getTypeLabel(q) {
