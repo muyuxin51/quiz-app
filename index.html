@@ -479,7 +479,7 @@ body {
 const RECORDS_KEY = 'quiz_records';
 const WRONG_KEY = 'quiz_wrong';
 const THEME_KEY = 'quiz_theme';
-const SHARED_BANKS_URL = '/.netlify/functions/get-banks';
+const SHARED_BANKS_URL = 'https://raw.githubusercontent.com/muyuxin51/quiz-app/master/banks.json';
 const UPLOAD_FUNCTION_URL = '/.netlify/functions/upload-bank';
 
 let banks = []; // Merged shared banks
@@ -494,18 +494,27 @@ function saveLocalBankIds() {
 }
 
 async function fetchSharedBanks() {
+  // Try GitHub raw first
   try {
-    const resp = await fetch(SHARED_BANKS_URL);
-    if (!resp.ok) throw new Error('Failed to fetch');
-    const shared = await resp.json();
-    // Mark shared banks
-    shared.forEach(b => { b._shared = true; });
-    return shared;
-  } catch {
-    // Offline fallback: use cached banks from last successful fetch
-    try { return JSON.parse(localStorage.getItem('banks_cache') || '[]'); }
-    catch { return []; }
-  }
+    const resp = await fetch(SHARED_BANKS_URL + '?t=' + Date.now());
+    if (resp.ok) {
+      const shared = await resp.json();
+      shared.forEach(b => { b._shared = true; });
+      return shared;
+    }
+  } catch {}
+  // Fallback: Netlify Function
+  try {
+    const resp = await fetch('/.netlify/functions/get-banks');
+    if (resp.ok) {
+      const shared = await resp.json();
+      shared.forEach(b => { b._shared = true; });
+      return shared;
+    }
+  } catch {}
+  // Final fallback: local cache
+  try { return JSON.parse(localStorage.getItem('banks_cache') || '[]'); }
+  catch { return []; }
 }
 
 function loadBanksFromCache() {
