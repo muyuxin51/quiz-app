@@ -460,6 +460,7 @@ body {
   <div style="display:flex;align-items:center;gap:12px;">
     <button class="btn-icon sidebar-toggle" onclick="toggleSidebar()" title="菜单">☰</button>
     <h1>刷题助手</h1>
+    <span style="font-size:12px;color:var(--text-secondary);margin-left:16px;" id="onlineCount"></span>
   </div>
   <div class="header-actions">
     <button class="btn-icon" onclick="toggleTheme()" title="切换主题" id="themeBtn">🌙</button>
@@ -1594,9 +1595,64 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
+// ==================== ONLINE COUNTER ====================
+const ONLINE_BLOB = 'https://jsonblob.com/api/jsonBlob/019e77ec-b20a-70bb-817f-6a891c03af84';
+let sessionId = 's_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+let onlineUpdating = false;
+let onlineCount = 0;
+const ONLINE_TTL = 60000; // 60 seconds inactivity -> offline
+
+async function updateOnlineCount() {
+  if (onlineUpdating) return;
+  onlineUpdating = true;
+  try {
+    // Read current sessions
+    const resp = await fetch(ONLINE_BLOB);
+    let data = await resp.json();
+    if (!data.sessions) data.sessions = {};
+    const now = Date.now();
+    // Clean stale sessions and add/update ours
+    let active = 0;
+    const cleaned = {};
+    for (const [id, ts] of Object.entries(data.sessions)) {
+      if (now - ts < ONLINE_TTL) { cleaned[id] = ts; active++; }
+    }
+    cleaned[sessionId] = now;
+    active = Object.keys(cleaned).length;
+    onlineCount = active;
+    // Update display
+    const el = document.getElementById('onlineCount');
+    if (el) el.textContent = '🟢 ' + active + ' 人在线';
+    // Write back
+    await fetch(ONLINE_BLOB, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessions: cleaned, online: active })
+    });
+  } catch {}
+  onlineUpdating = false;
+}
+
+function startOnlineTracker() {
+  updateOnlineCount();
+  // Heartbeat every 30 seconds
+  setInterval(updateOnlineCount, 30000);
+  // Remove session on unload
+  window.addEventListener('beforeunload', () => {
+    fetch(ONLINE_BLOB).then(r => r.json()).then(data => {
+      if (data.sessions) {
+        delete data.sessions[sessionId];
+        data.online = Object.keys(data.sessions).length;
+        navigator.sendBeacon(ONLINE_BLOB, new Blob([JSON.stringify(data)], { type: 'application/json' }));
+      }
+    }).catch(() => {});
+  });
+}
+
 // ==================== INIT ====================
 async function initApp() {
   initTheme();
+  startOnlineTracker();
   loadLocalBankIds();
   // Show banks immediately from local cache
   banks = loadLocalBanks();
