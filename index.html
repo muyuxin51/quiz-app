@@ -192,6 +192,7 @@ body {
   gap: 16px;
   align-items: flex-start;
 }
+.quiz-main { flex: 1; min-width: 0; }
 .q-overview {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -224,8 +225,9 @@ body {
   flex-shrink: 0;
 }
 @media (max-width: 600px) {
-  .quiz-body { flex-direction: column; }
+  .quiz-body { flex-direction: column-reverse; }
   .q-overview { width: 100%; max-height: none; position: static; grid-template-columns: repeat(5, 1fr); }
+  .quiz-actions { position: sticky; bottom: 0; background: var(--bg); padding: 12px 0; z-index: 10; }
 }
 .q-overview-item:hover { border-color: var(--primary); transform: scale(1.1); }
 .q-overview-item.current { border-color: var(--primary); color: var(--primary); box-shadow: 0 0 0 2px rgba(79,70,229,.25); }
@@ -825,7 +827,7 @@ function renderQuiz() {
     <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
     <div class="progress-text">第 ${quizIndex + 1} / ${total} 题 · 已答 ${answeredCount} 题 · 正确 ${countCorrect()} 题</div>
     <div class="quiz-body">
-      <div style="flex:1;min-width:0;">
+      <div class="quiz-main">
         <div class="question-card">
           <div class="question-num">第 ${quizIndex + 1} 题</div>
           <div class="question-stem">${escapeHtml(q.display)}</div>
@@ -1300,6 +1302,10 @@ function hasQuizSession(bankId, mode) {
 function deleteBank(id) {
   const bank = banks.find(b => b.id === id);
   if (!bank) return;
+  if (bank._shared) {
+    showToast('共享题库无法删除');
+    return;
+  }
   if (!confirm('确定删除这个题库吗？此操作不可撤销。')) return;
   banks = banks.filter(b => b.id !== id);
   localBankIds.delete(id);
