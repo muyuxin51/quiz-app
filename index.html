@@ -897,10 +897,17 @@ function buildOverview() {
 }
 
 function jumpToQuestion(index) {
+  const overview = document.querySelector('.q-overview');
+  const savedLeft = overview ? overview.scrollLeft : 0;
   quizIndex = index;
   saveQuizSession();
   renderQuiz();
   setTimeout(() => {
+    const ov = document.querySelector('.q-overview');
+    if (ov) ov.scrollLeft = savedLeft;
+    // Also scroll the clicked item into view within the overview
+    const item = document.querySelector('.q-overview-item.current');
+    if (item) item.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
     const card = document.querySelector('.question-card');
     if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, 100);
