@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>刷题助手</title>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+<style>
+:root {
+  --bg: #f5f7fa;
+  --card-bg: #fff;
+  --text: #1a1a2e;
+  --text-secondary: #666;
+  --border: #e2e8f0;
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --sidebar-width: 300px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,.1);
+  --radius: 10px;
+  --transition: .2s ease;
+}
+[data-theme="dark"] {
+  --bg: #0f172a;
+  --card-bg: #1e293b;
+  --text: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --border: #334155;
+  --primary: #818cf8;
+  --primary-hover: #6366f1;
+  --shadow: 0 1px 3px rgba(0,0,0,.3);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,.4);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background var(--transition), color var(--transition);
+}
+
+/* Header */
+.header {
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header h1 { font-size: 20px; font-weight: 700; color: var(--primary); }
+.header-actions { display:flex; gap:12px; align-items:center; }
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+.btn-danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+.btn-danger:hover { background: var(--danger); color: #fff; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-icon { width:36px; height:36px; padding:0; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background:transparent; border:1px solid var(--border); cursor:pointer; color:var(--text); font-size:16px; transition:all var(--transition); }
+.btn-icon:hover { border-color:var(--primary); color:var(--primary); }
+
+/* Layout */
+.layout { display:flex; height:calc(100vh - 56px); }
+
+/* Sidebar */
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--card-bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: transform var(--transition);
+}
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sidebar-header h3 { font-size: 14px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .5px; }
+.upload-area {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.upload-area:hover { border-color: var(--primary); background: rgba(79,70,229,.04); }
+.upload-area p { font-size: 13px; color: var(--text-secondary); }
+.upload-hint { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+
+.bank-list { flex:1; overflow-y:auto; padding: 8px; }
+.bank-item {
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition);
+  margin-bottom: 4px;
+  border: 1px solid transparent;
+}
+.bank-item:hover { background: rgba(79,70,229,.06); }
+.bank-item.active { background: rgba(79,70,229,.1); border-color: var(--primary); }
+.bank-item .bank-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.bank-item .bank-meta { font-size: 12px; color: var(--text-secondary); display:flex; gap:12px; }
+.bank-item .bank-actions { margin-top:8px; display:flex; gap:6px; }
+
+/* Main */
+.main {
+  flex:1;
+  overflow-y:auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.main-inner { width: 100%; max-width: 900px; }
+
+/* Welcome */
+.welcome {
+  text-align: center;
+  padding: 80px 20px;
+}
+.welcome-icon { font-size: 64px; margin-bottom: 16px; }
+.welcome h2 { font-size: 24px; margin-bottom: 8px; }
+.welcome p { color: var(--text-secondary); margin-bottom: 24px; }
+
+/* Quiz area */
+.quiz-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.mode-tabs { display:flex; gap:4px; background:var(--bg); border-radius:8px; padding:3px; }
+.mode-tab {
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+}
+.mode-tab.active { background: var(--card-bg); color: var(--primary); font-weight:600; box-shadow: var(--shadow); }
+.progress-bar {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 3px;
+  transition: width .3s ease;
+}
+.progress-text { font-size: 12px; color: var(--text-secondary); margin-bottom: 16px; }
+
+/* Question overview — right sidebar, 4-column grid */
+.quiz-body {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.q-overview {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  padding: 12px 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  flex-shrink: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+  position: sticky;
+  top: 8px;
+  width: 250px;
+}
+.q-overview-item {
+  width: 40px;
+  height: 36px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 2px solid var(--border);
+  background: var(--bg);
+  color: var(--text-secondary);
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  .quiz-body { flex-direction: column; }
+  .q-overview { width: 100%; max-height: none; position: static; grid-template-columns: repeat(5, 1fr); }
+}
+.q-overview-item:hover { border-color: var(--primary); transform: scale(1.1); }
+.q-overview-item.current { border-color: var(--primary); color: var(--primary); box-shadow: 0 0 0 2px rgba(79,70,229,.25); }
+.q-overview-item.correct { background: rgba(16,185,129,.15); border-color: var(--success); color: var(--success); }
+.q-overview-item.wrong { background: rgba(239,68,68,.15); border-color: var(--danger); color: var(--danger); }
+
+.question-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow);
+  transition: all var(--transition);
+}
+.question-num { font-weight: 700; color: var(--primary); margin-bottom: 12px; font-size: 14px; }
+.question-stem { font-size: 16px; line-height: 1.8; margin-bottom: 20px; }
+
+/* Option buttons */
+.options-list { display:flex; flex-direction:column; gap:10px; }
+.option-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 18px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1.6;
+  text-align: left;
+  color: var(--text);
+  transition: all var(--transition);
+}
+.option-btn:hover { border-color: var(--primary); background: rgba(79,70,229,.04); }
+.option-btn .opt-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg);
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+.option-btn:hover .opt-letter { background: var(--primary); color: #fff; }
+.option-btn.selected-correct {
+  border-color: var(--success);
+  background: rgba(16,185,129,.08);
+}
+.option-btn.selected-correct .opt-letter { background: var(--success); color: #fff; }
+.option-btn.selected-wrong {
+  border-color: var(--danger);
+  background: rgba(239,68,68,.08);
+}
+.option-btn.selected-wrong .opt-letter { background: var(--danger); color: #fff; }
+.option-btn.show-correct {
+  border-color: var(--success);
+  background: rgba(16,185,129,.05);
+}
+.option-btn.show-correct .opt-letter { background: var(--success); color: #fff; }
+.option-btn:disabled { cursor: default; opacity: 0.85; }
+.option-btn:disabled:hover { border-color: var(--border); background: var(--card-bg); }
+.option-btn:disabled:hover .opt-letter { background: var(--bg); color: var(--text); }
+.option-btn.selected-correct:disabled:hover { border-color: var(--success); background: rgba(16,185,129,.08); }
+.option-btn.selected-correct:disabled:hover .opt-letter { background: var(--success); color: #fff; }
+.option-btn.selected-wrong:disabled:hover { border-color: var(--danger); background: rgba(239,68,68,.08); }
+.option-btn.selected-wrong:disabled:hover .opt-letter { background: var(--danger); color: #fff; }
+.option-btn.show-correct:disabled:hover { border-color: var(--success); background: rgba(16,185,129,.05); }
+.option-btn.show-correct:disabled:hover .opt-letter { background: var(--success); color: #fff; }
+
+.quiz-feedback {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 15px;
+}
+.quiz-feedback.correct { background: rgba(16,185,129,.1); color: var(--success); }
+.quiz-feedback.wrong { background: rgba(239,68,68,.1); color: var(--danger); }
+
+.quiz-actions { display:flex; gap:12px; margin-top:20px; justify-content:center; flex-wrap:wrap; }
+
+/* Score summary */
+.score-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+}
+.score-big { font-size: 56px; font-weight: 800; color: var(--primary); }
+.score-detail { color: var(--text-secondary); margin: 12px 0 24px; }
+
+/* Stats */
+.stats-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:24px; }
+.stat-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+.stat-num { font-size: 32px; font-weight: 700; color: var(--primary); }
+.stat-label { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+
+.history-list { display:flex; flex-direction:column; gap:8px; }
+.history-item {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--shadow);
+}
+
+/* Preview */
+.preview-list { display:flex; flex-direction:column; gap:8px; }
+.preview-item {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+.preview-item .q-text { font-size: 14px; margin-bottom: 6px; }
+.preview-item .q-answer { font-size: 12px; color: var(--primary); font-weight: 600; }
+.preview-item .q-options { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+/* Section title */
+.section-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; display:flex; align-items:center; gap:8px; }
+
+/* Sidebar toggle for mobile */
+.sidebar-toggle { display:none; }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a2e;
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 300;
+  animation: toastIn .3s ease, toastOut .3s ease 1.7s forwards;
+  pointer-events: none;
+}
+@keyframes toastIn { from { opacity:0; transform:translateX(-50%) translateY(10px); } }
+@keyframes toastOut { to { opacity:0; transform:translateX(-50%) translateY(-10px); } }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 56px;
+    bottom: 0;
+    z-index: 150;
+    transform: translateX(-100%);
+  }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-toggle { display: flex; }
+  .main { padding: 16px; }
+  .quiz-header { flex-direction:column; align-items:flex-start; }
+  .option-btn { padding: 12px 14px; font-size: 14px; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+/* Tag */
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.tag-success { background: rgba(16,185,129,.15); color: var(--success); }
+.tag-warning { background: rgba(245,158,11,.15); color: var(--warning); }
+.tag-danger { background: rgba(239,68,68,.15); color: var(--danger); }
+
+.empty-state { text-align:center; padding:40px 20px; color:var(--text-secondary); }
+.empty-state .empty-icon { font-size:48px; margin-bottom:12px; }
+
+.hint-text { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <button class="btn-icon sidebar-toggle" onclick="toggleSidebar()" title="菜单">☰</button>
+    <h1>刷题助手</h1>
+  </div>
+  <div class="header-actions">
+    <button class="btn-icon" onclick="toggleTheme()" title="切换主题" id="themeBtn">🌙</button>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h3>题库管理</h3>
+      <div class="upload-area" id="uploadArea">
+        <p>点击上传 Word 文档</p>
+        <p class="upload-hint">支持 .docx 格式 · 选择题</p>
+        <input type="file" id="fileInput" accept=".docx" style="display:none">
+      </div>
+    </div>
+    <div class="bank-list" id="bankList"></div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main" id="mainContent">
+    <div class="main-inner" id="mainInner">
+      <!-- Welcome -->
+      <div class="welcome" id="welcomeView"></div>
+
+      <!-- Quiz View -->
+      <div id="quizView" style="display:none;width:100%;"></div>
+
+      <!-- Preview View -->
+      <div id="previewView" style="display:none;width:100%;"></div>
+
+      <!-- Stats View -->
+      <div id="statsView" style="display:none;width:100%;"></div>
+
+      <!-- Wrong Book View -->
+      <div id="wrongBookView" style="display:none;width:100%;"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ==================== STORAGE LAYER ====================
+const STORAGE_KEY = 'quiz_banks';
+const RECORDS_KEY = 'quiz_records';
+const WRONG_KEY = 'quiz_wrong';
+const THEME_KEY = 'quiz_theme';
+
+function loadBanks() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+  catch { return []; }
+}
+function saveBanks(banks) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(banks));
+}
+function loadRecords() {
+  try { return JSON.parse(localStorage.getItem(RECORDS_KEY) || '[]'); }
+  catch { return []; }
+}
+function saveRecords(records) {
+  localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
+}
+function loadWrong() {
+  try { return JSON.parse(localStorage.getItem(WRONG_KEY) || '{}'); }
+  catch { return {}; }
+}
+function saveWrong(wrong) {
+  localStorage.setItem(WRONG_KEY, JSON.stringify(wrong));
+}
+
+// ==================== WORD PARSING (MCQ format) ====================
+function parseDocx(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const arrayBuffer = e.target.result;
+      mammoth.extractRawText({ arrayBuffer })
+        .then(function(result) {
+          const text = result.value;
+          const questions = extractQuestions(text);
+          resolve({ name: file.name.replace(/\.docx$/i, ''), questions, text });
+        })
+        .catch(reject);
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function extractQuestions(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const questions = [];
+
+  // Match lines that start with a question number
+  const numPattern = /^[\s]*[\(\（]?\s*\d+\s*[\)\）\.\、\．\s]+/;
+  // Match option lines: A. B. C. D. or A、 B、 etc.
+  const optPattern = /^([A-Da-d])[\.\、\s]\s*/;
+
+  let current = null;
+
+  function saveCurrent() {
+    if (current && current.options.length >= 2) {
+      questions.push(current);
+    }
+    current = null;
+  }
+
+  for (const line of lines) {
+    if (numPattern.test(line)) {
+      saveCurrent();
+
+      let body = line.replace(numPattern, '').trim();
+      if (!body) continue;
+
+      // Extract answer from brackets: （  A  ） or (A) etc.
+      let cnMatch = body.match(/（\s*([A-Da-d])\s*）/);
+      let enMatch = body.match(/\(\s*([A-Da-d])\s*\)/);
+      let answer = cnMatch ? cnMatch[1].toUpperCase() : (enMatch ? enMatch[1].toUpperCase() : null);
+      if (!answer) continue;
+
+      // Remove answer from display text (replace with  )
+      let display = body;
+      display = display.replace(/（\s*[A-Da-d]\s*）/g, '（  ）');
+      display = display.replace(/\(\s*[A-Da-d]\s*\)/g, '(  )');
+
+      current = {
+        id: 'q_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        original: body,
+        display: display,
+        answer: answer,
+        options: []
+      };
+    } else if (current && optPattern.test(line)) {
+      const m = line.match(optPattern);
+      const letter = m[1].toUpperCase();
+      const text = line.replace(optPattern, '').trim();
+
+      // Handle inline multi-options: "A. xxx B. xxx C. xxx D. xxx"
+      // Split by option prefix pattern
+      const remainingParts = text.split(/\s+(?=[A-Da-d][\.\、\s])/);
+      if (remainingParts.length > 1) {
+        // First part belongs to current letter
+        current.options.push({ letter, text: remainingParts[0].trim() });
+        // Remaining parts are more options
+        for (let i = 1; i < remainingParts.length; i++) {
+          const part = remainingParts[i].trim();
+          const pm = part.match(/^([A-Da-d])[\.\、\s]\s*/);
+          if (pm) {
+            current.options.push({ letter: pm[1].toUpperCase(), text: part.replace(pm[0], '').trim() });
+          }
+        }
+      } else {
+        current.options.push({ letter, text });
+      }
+    }
+  }
+
+  saveCurrent();
+  return questions;
+}
+
+// ==================== APP STATE ====================
+let currentBankId = null;
+let currentView = 'welcome';
+let quizMode = 'sequential';
+let quizQuestions = [];
+let quizIndex = 0;
+let userChoices = {}; // { questionId: chosenLetter }
+let quizFinished = false;
+let quizActive = false; // 是否有一个活跃的刷题会话
+
+let banks = loadBanks();
+let records = loadRecords();
+let wrongBook = loadWrong();
+
+// ==================== RENDER ====================
+function renderSidebar() {
+  const list = document.getElementById('bankList');
+  if (banks.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><p>暂无题库<br>上传 Word 文档开始</p></div>';
+    return;
+  }
+  list.innerHTML = banks.map(b => {
+    const isActiveQuiz = quizActive && !quizFinished && currentBankId === b.id && quizQuestions.length > 0;
+    return `
+    <div class="bank-item ${b.id === currentBankId ? 'active' : ''}" onclick="selectBank('${b.id}')">
+      <div class="bank-name">📄 ${escapeHtml(b.name)}</div>
+      <div class="bank-meta">
+        <span>${b.questions.length} 题</span>
+        ${isActiveQuiz ? `<span style="color:var(--primary);font-weight:600;">已答${Object.keys(userChoices).length}题</span>` : ''}
+        <span>${formatDate(b.createdAt)}</span>
+      </div>
+      <div class="bank-actions">
+        <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();selectBank('${b.id}');${isActiveQuiz ? 'resumeQuiz()' : 'startQuiz()'};">${isActiveQuiz ? '继续刷题' : '刷题'}</button>
+        <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();previewBank('${b.id}');">预览</button>
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteBank('${b.id}');">删除</button>
+      </div>
+    </div>
+  `}).join('');
+}
+
+function showView(view) {
+  currentView = view;
+  document.getElementById('welcomeView').style.display = view === 'welcome' ? 'block' : 'none';
+  document.getElementById('quizView').style.display = view === 'quiz' ? 'block' : 'none';
+  document.getElementById('previewView').style.display = view === 'preview' ? 'block' : 'none';
+  document.getElementById('statsView').style.display = view === 'stats' ? 'block' : 'none';
+  document.getElementById('wrongBookView').style.display = view === 'wrongbook' ? 'block' : 'none';
+
+  // If navigating back to quiz with active session, restore it
+  if (view === 'quiz' && quizActive && !quizFinished) {
+    renderQuiz();
+  }
+  // Refresh welcome view to show/hide resume button
+  if (view === 'welcome') {
+    renderWelcome();
+  }
+}
+
+function renderWelcome() {
+  const bank = getCurrentBank();
+  const canResume = quizActive && !quizFinished && quizQuestions.length > 0 && currentBankId;
+  document.getElementById('welcomeView').innerHTML = `
+    <div class="welcome-icon">📚</div>
+    <h2>欢迎使用刷题助手</h2>
+    <p>上传 Word 文档作为题库，开始高效刷题</p>
+    <p class="hint-text">文档格式：题干（答案）+ A./B./C./D. 选项</p>
+    ${canResume ? `
+      <div style="margin-bottom:16px;padding:16px;background:rgba(79,70,229,.06);border:1px solid var(--primary);border-radius:8px;text-align:left;display:inline-block;">
+        <div style="font-weight:600;margin-bottom:4px;">📝 有未完成的刷题会话</div>
+        <div style="font-size:13px;color:var(--text-secondary);">${escapeHtml(bank ? bank.name : '')} · 已答 ${Object.keys(userChoices).length}/${quizQuestions.length} 题</div>
+      </div>
+      <br>
+      <button class="btn btn-primary" onclick="resumeQuiz()">继续刷题</button>
+    ` : `<button class="btn btn-primary" onclick="document.getElementById('uploadArea').click()">上传题库</button>`}
+  `;
+}
+
+function resumeQuiz() {
+  const mode = quizMode;
+  startQuiz(mode);
+}
+
+function selectBank(id) {
+  currentBankId = id;
+  renderSidebar();
+}
+
+function getCurrentBank() {
+  return banks.find(b => b.id === currentBankId);
+}
+
+// ==================== QUIZ ====================
+function startQuiz(mode) {
+  const bank = getCurrentBank();
+  if (!bank) { showToast('请先选择题库'); return; }
+  if (bank.questions.length === 0) { showToast('题库为空'); return; }
+
+  const targetMode = mode || 'sequential';
+
+  // Save current session before switching
+  if (quizActive && !quizFinished) {
+    saveQuizSession();
+  }
+
+  // Try to restore saved session for the target mode
+  if (loadQuizSession(currentBankId, targetMode)) {
+    showView('quiz');
+    renderQuiz();
+    document.getElementById('sidebar').classList.remove('open');
+    return;
+  }
+
+  // Start fresh
+  quizMode = targetMode;
+  quizIndex = 0;
+  userChoices = {};
+  quizFinished = false;
+  quizActive = true;
+
+  let qs = [...bank.questions];
+  if (quizMode === 'random') {
+    qs = shuffle(qs);
+  } else if (quizMode === 'wrong') {
+    const wrongIds = (wrongBook[bank.id] || []).map(w => w.questionId);
+    qs = qs.filter(q => wrongIds.includes(q.id));
+    if (qs.length === 0) { showView('quiz'); showEmptyWrong(); return; }
+  }
+
+  quizQuestions = qs;
+  saveQuizSession();
+  showView('quiz');
+  renderQuiz();
+  document.getElementById('sidebar').classList.remove('open');
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function renderQuiz() {
+  if (quizFinished) { showQuizResult(); return; }
+  if (quizQuestions.length === 0) {
+    if (quizMode === 'wrong') { showEmptyWrong(); return; }
+    showQuizResult(); return;
+  }
+  if (quizIndex >= quizQuestions.length) { showQuizResult(); return; }
+
+  const q = quizQuestions[quizIndex];
+  const chosen = userChoices[q.id];
+  const total = quizQuestions.length;
+  const answeredCount = Object.keys(userChoices).length;
+  const progress = (answeredCount / total) * 100;
+
+  const modeLabels = { sequential: '顺序刷题', random: '随机刷题', wrong: '错题重刷' };
+  const bank = getCurrentBank();
+
+  document.getElementById('quizView').innerHTML = `
+    <div class="quiz-header">
+      <div style="font-weight:600;font-size:15px;">${escapeHtml(bank ? bank.name : '')} · ${modeLabels[quizMode]}</div>
+      <div class="mode-tabs">
+        <button class="mode-tab ${quizMode === 'sequential' ? 'active' : ''}" onclick="switchMode('sequential')">顺序</button>
+        <button class="mode-tab ${quizMode === 'random' ? 'active' : ''}" onclick="switchMode('random')">随机</button>
+        <button class="mode-tab ${quizMode === 'wrong' ? 'active' : ''}" onclick="switchMode('wrong')">错题</button>
+      </div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
+    <div class="progress-text">第 ${quizIndex + 1} / ${total} 题 · 已答 ${answeredCount} 题 · 正确 ${countCorrect()} 题</div>
+    <div class="quiz-body">
+      <div style="flex:1;min-width:0;">
+        <div class="question-card">
+          <div class="question-num">第 ${quizIndex + 1} 题</div>
+          <div class="question-stem">${escapeHtml(q.display)}</div>
+          <div class="options-list">
+            ${q.options.map(opt => {
+              let optClass = '';
+              if (chosen) {
+                if (chosen === opt.letter && chosen === q.answer) optClass = 'selected-correct';
+                else if (chosen === opt.letter && chosen !== q.answer) optClass = 'selected-wrong';
+                else if (opt.letter === q.answer) optClass = 'show-correct';
+              }
+              return `<button class="option-btn ${optClass}" ${chosen ? 'disabled' : ''} onclick="chooseOption('${q.id}','${opt.letter}')">
+                <span class="opt-letter">${opt.letter}</span>
+                <span>${escapeHtml(opt.text)}</span>
+              </button>`;
+            }).join('')}
+          </div>
+          ${chosen ? renderFeedback(q, chosen) : ''}
+          ${quizMode === 'wrong' ? `<button class="btn btn-danger btn-sm" style="margin-top:8px;" onclick="removeWrongFromQuiz('${q.id}')">移出错题本</button>` : ''}
+        </div>
+      </div>
+      ${buildOverview()}
+    </div>
+    <div class="quiz-actions">
+      ${chosen ? `<button class="btn btn-primary" onclick="nextQuestion()">${quizIndex < total - 1 ? '下一题 →' : '查看结果'}</button>` : ''}
+      ${quizIndex > 0 ? `<button class="btn btn-outline" onclick="prevQuestion()">← 上一题</button>` : ''}
+      <button class="btn btn-outline" onclick="restartQuiz()">🔄 重新开始</button>
+      <button class="btn btn-outline" onclick="exitQuiz()">退出刷题</button>
+    </div>
+  `;
+}
+
+function buildOverview() {
+  return `<div class="q-overview">
+    ${quizQuestions.map((q, i) => {
+      const chosen = userChoices[q.id];
+      let cls = '';
+      if (i === quizIndex) cls = 'current';
+      if (chosen) {
+        cls += ' ' + (chosen === q.answer ? 'correct' : 'wrong');
+      }
+      return `<span class="q-overview-item ${cls.trim()}" onclick="jumpToQuestion(${i})" title="第${i + 1}题">${i + 1}</span>`;
+    }).join('')}
+  </div>`;
+}
+
+function jumpToQuestion(index) {
+  quizIndex = index;
+  saveQuizSession();
+  renderQuiz();
+}
+
+function countCorrect() {
+  return Object.entries(userChoices).filter(([qId, letter]) => {
+    const q = quizQuestions.find(q => q.id === qId);
+    return q && letter === q.answer;
+  }).length;
+}
+
+function restartQuiz() {
+  if (!confirm('确定要重新开始吗？当前进度将丢失。')) return;
+  clearQuizSession(currentBankId, quizMode);
+  const bank = getCurrentBank();
+  let qs = [...bank.questions];
+  if (quizMode === 'random') {
+    qs = shuffle(qs);
+  } else if (quizMode === 'wrong') {
+    const wrongIds = (wrongBook[bank.id] || []).map(w => w.questionId);
+    qs = qs.filter(q => wrongIds.includes(q.id));
+    if (qs.length === 0) {
+      showEmptyWrong();
+      return;
+    }
+  }
+  quizQuestions = qs;
+  quizIndex = 0;
+  userChoices = {};
+  quizFinished = false;
+  quizActive = true;
+  saveQuizSession();
+  renderQuiz();
+}
+
+function exitQuiz() {
+  clearQuizSession(currentBankId, quizMode);
+  quizActive = false;
+  quizQuestions = [];
+  quizIndex = 0;
+  userChoices = {};
+  quizFinished = false;
+  showView('welcome');
+  renderSidebar();
+}
+
+function goBack() {
+  if (quizActive && !quizFinished && quizQuestions.length > 0 && currentBankId) {
+    showView('quiz');
+  } else {
+    currentBankId = null;
+    showView('welcome');
+    renderSidebar();
+  }
+}
+
+function renderFeedback(q, chosen) {
+  const isCorrect = chosen === q.answer;
+  if (isCorrect) {
+    return `<div class="quiz-feedback correct">✅ 回答正确！</div>`;
+  } else {
+    const correctOpt = q.options.find(o => o.letter === q.answer);
+    return `<div class="quiz-feedback wrong">❌ 回答错误！正确答案是 <strong>${q.answer}</strong>${correctOpt ? '：' + escapeHtml(correctOpt.text) : ''}</div>`;
+  }
+}
+
+function chooseOption(qId, letter) {
+  if (userChoices[qId]) return; // already answered
+  const q = quizQuestions[quizIndex];
+  userChoices[qId] = letter;
+
+  const isCorrect = letter === q.answer;
+  updateWrongBook(q, isCorrect);
+  saveQuizSession();
+
+  renderQuiz();
+}
+
+function updateWrongBook(q, isCorrect) {
+  if (!currentBankId) return;
+  if (!wrongBook[currentBankId]) wrongBook[currentBankId] = [];
+
+  const existing = wrongBook[currentBankId].find(w => w.questionId === q.id);
+  if (!isCorrect) {
+    if (!existing) {
+      wrongBook[currentBankId].push({ questionId: q.id, wrongCount: 1, lastWrong: Date.now() });
+    } else {
+      existing.wrongCount++;
+      existing.lastWrong = Date.now();
+    }
+  } else {
+    wrongBook[currentBankId] = wrongBook[currentBankId].filter(w => w.questionId !== q.id);
+  }
+  saveWrong(wrongBook);
+}
+
+function nextQuestion() {
+  if (quizIndex < quizQuestions.length - 1) {
+    quizIndex++;
+  } else {
+    quizFinished = true;
+  }
+  renderQuiz();
+}
+
+function prevQuestion() {
+  if (quizIndex > 0) {
+    quizIndex--;
+    renderQuiz();
+  }
+}
+
+function switchMode(mode) {
+  if (mode === quizMode) return;
+  startQuiz(mode);
+}
+
+function showQuizResult() {
+  quizActive = false;
+  clearQuizSession(currentBankId, quizMode);
+  const total = quizQuestions.length;
+  const correctCount = Object.entries(userChoices).filter(([qId, letter]) => {
+    const q = quizQuestions.find(q => q.id === qId);
+    return q && letter === q.answer;
+  }).length;
+  const score = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+  const bank = getCurrentBank();
+
+  // Save record
+  const record = {
+    id: 'r_' + Date.now(),
+    bankId: currentBankId,
+    bankName: bank ? bank.name : '',
+    score,
+    correctCount,
+    total,
+    mode: quizMode,
+    createdAt: new Date().toISOString()
+  };
+  records.unshift(record);
+  if (records.length > 100) records = records.slice(0, 100);
+  saveRecords(records);
+
+  document.getElementById('quizView').innerHTML = `
+    <div class="score-card">
+      <div style="font-size:18px;font-weight:700;margin-bottom:16px;">${escapeHtml(bank ? bank.name : '')} · 答题结果</div>
+      <div class="score-big">${score}分</div>
+      <div class="score-detail">答对 ${correctCount} 道 / 共 ${total} 道</div>
+      <div class="stats-grid" style="margin-bottom:24px;">
+        <div class="stat-card">
+          <div class="stat-num" style="color:var(--success);">${correctCount}</div>
+          <div class="stat-label">正确</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" style="color:var(--danger);">${total - correctCount}</div>
+          <div class="stat-label">错误</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">${score}%</div>
+          <div class="stat-label">正确率</div>
+        </div>
+      </div>
+      <div class="quiz-actions">
+        <button class="btn btn-primary" onclick="startQuiz(quizMode)">再来一轮</button>
+        ${total - correctCount > 0 ? `<button class="btn btn-outline" onclick="startQuiz('wrong')">只刷错题</button>` : ''}
+        <button class="btn btn-outline" onclick="viewStats()">查看统计</button>
+        <button class="btn btn-outline" onclick="showView('welcome');renderSidebar();">返回首页</button>
+      </div>
+    </div>
+  `;
+}
+
+// ==================== PREVIEW ====================
+function previewBank(id) {
+  selectBank(id);
+  const bank = getCurrentBank();
+  if (!bank) return;
+
+  showView('preview');
+  document.getElementById('previewView').innerHTML = `
+    <div class="section-title">📋 ${escapeHtml(bank.name)} · 题目预览</div>
+    <p style="color:var(--text-secondary);margin-bottom:16px;">共 ${bank.questions.length} 题</p>
+    <div class="preview-list">
+      ${bank.questions.map((q, i) => `
+        <div class="preview-item">
+          <div class="q-text">${i + 1}. ${escapeHtml(q.original)}</div>
+          <div class="q-options">选项：${q.options.map(o => o.letter + '. ' + escapeHtml(o.text)).join(' | ')}</div>
+          <div class="q-answer">✅ 答案：${q.answer}</div>
+        </div>
+      `).join('')}
+    </div>
+    <div style="margin-top:20px;display:flex;gap:12px;">
+      <button class="btn btn-primary" onclick="startQuiz()">开始刷题</button>
+      <button class="btn btn-outline" onclick="goBack()">返回</button>
+    </div>
+  `;
+}
+
+// ==================== STATS ====================
+function viewStats() {
+  showView('stats');
+  const bankRecords = records.filter(r => r.bankId === currentBankId);
+  const totalAnswered = bankRecords.reduce((s, r) => s + r.total, 0);
+  const totalCorrect = bankRecords.reduce((s, r) => s + r.correctCount, 0);
+  const avgScore = bankRecords.length > 0 ? Math.round(bankRecords.reduce((s, r) => s + r.score, 0) / bankRecords.length) : 0;
+  const bank = getCurrentBank();
+  const wrongCount = (wrongBook[currentBankId] || []).length;
+
+  document.getElementById('statsView').innerHTML = `
+    <div class="section-title">📊 ${bank ? escapeHtml(bank.name) : ''} · 统计</div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-num">${bankRecords.length}</div>
+        <div class="stat-label">做题次数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">${totalAnswered}</div>
+        <div class="stat-label">累计做题数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">${avgScore}%</div>
+        <div class="stat-label">平均正确率</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--danger);">${wrongCount}</div>
+        <div class="stat-label">错题数量</div>
+      </div>
+    </div>
+
+    ${wrongCount > 0 ? `
+      <div style="margin-bottom:24px;">
+        <button class="btn btn-outline" onclick="viewWrongBook()">查看错题本</button>
+        <button class="btn btn-primary" onclick="startQuiz('wrong')" style="margin-left:8px;">错题重刷</button>
+      </div>
+    ` : ''}
+
+    <div class="section-title">📝 做题历史</div>
+    ${bankRecords.length === 0 ? '<div class="empty-state"><p>暂无记录</p></div>' : `
+      <div class="history-list">
+        ${bankRecords.map(r => `
+          <div class="history-item">
+            <div>
+              <div style="font-weight:600;">${r.mode === 'random' ? '随机刷题' : r.mode === 'wrong' ? '错题重刷' : '顺序刷题'}</div>
+              <div style="font-size:12px;color:var(--text-secondary);">${formatDate(r.createdAt)}</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-weight:700;font-size:18px;color:${r.score >= 80 ? 'var(--success)' : r.score >= 60 ? 'var(--warning)' : 'var(--danger)'};">${r.score}分</div>
+              <div style="font-size:12px;color:var(--text-secondary);">${r.correctCount}/${r.total}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `}
+    <div style="margin-top:20px;">
+      <button class="btn btn-outline" onclick="goBack()">返回</button>
+    </div>
+  `;
+}
+
+function viewWrongBook() {
+  showView('wrongbook');
+  const bank = getCurrentBank();
+  const wrongItems = wrongBook[currentBankId] || [];
+  const wrongQuestions = wrongItems.map(w => {
+    const q = bank.questions.find(q => q.id === w.questionId);
+    return { ...w, question: q };
+  }).filter(w => w.question);
+
+  document.getElementById('wrongBookView').innerHTML = `
+    <div class="section-title">📕 ${bank ? escapeHtml(bank.name) : ''} · 错题本</div>
+    ${wrongQuestions.length === 0 ? '<div class="empty-state"><div class="empty-icon">🎉</div><p>暂无错题，太棒了！</p></div>' : `
+      <div class="preview-list">
+        ${wrongQuestions.map((w, i) => `
+          <div class="preview-item">
+            <div class="q-text">${i + 1}. ${escapeHtml(w.question.original)}</div>
+            <div class="q-options">选项：${w.question.options.map(o => o.letter + '. ' + escapeHtml(o.text)).join(' | ')}</div>
+            <div class="q-answer">✅ 答案：${w.question.answer} &nbsp;&nbsp;<span class="tag tag-danger">错误 ${w.wrongCount} 次</span></div>
+            <button class="btn btn-danger btn-sm" style="margin-top:6px;" onclick="removeWrongQuestion('${w.questionId}')">移出错题本</button>
+          </div>
+        `).join('')}
+      </div>
+      <div style="margin-top:20px;display:flex;gap:12px;">
+        <button class="btn btn-primary" onclick="startQuiz('wrong')">错题重刷</button>
+        <button class="btn btn-outline" onclick="viewStats()">返回统计</button>
+        <button class="btn btn-danger" onclick="clearAllWrong()" style="margin-left:8px;">清空错题本</button>
+      </div>
+    `}
+  `;
+}
+
+function removeWrongQuestion(qId) {
+  if (!currentBankId) return;
+  wrongBook[currentBankId] = (wrongBook[currentBankId] || []).filter(w => w.questionId !== qId);
+  saveWrong(wrongBook);
+  // Also update wrong mode quiz session if it exists
+  updateWrongModeSession();
+  viewWrongBook();
+  showToast('已移出错题本');
+}
+
+function updateWrongModeSession() {
+  const key = `${SESSION_KEY}_${currentBankId}_wrong`;
+  try {
+    const data = JSON.parse(localStorage.getItem(key));
+    if (!data || !data.quizQuestions) return;
+    const wrongIds = (wrongBook[currentBankId] || []).map(w => w.questionId);
+    data.quizQuestions = data.quizQuestions.filter(id => wrongIds.includes(id));
+    if (data.quizQuestions.length === 0) {
+      localStorage.removeItem(key);
+    } else {
+      localStorage.setItem(key, JSON.stringify(data));
+    }
+  } catch {}
+}
+
+function removeWrongFromQuiz(qId) {
+  removeWrongQuestion(qId);
+  quizQuestions = quizQuestions.filter(q => q.id !== qId);
+  if (quizQuestions.length === 0) {
+    clearQuizSession(currentBankId, quizMode);
+    quizActive = false;
+    quizFinished = false;
+    userChoices = {};
+    showEmptyWrong();
+  } else {
+    if (quizIndex >= quizQuestions.length) quizIndex = quizQuestions.length - 1;
+    saveQuizSession();
+    renderQuiz();
+  }
+}
+
+function showEmptyWrong() {
+  showView('quiz');
+  document.getElementById('quizView').innerHTML = `
+    <div class="score-card">
+      <div style="font-size:48px;margin-bottom:16px;">📭</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:8px;">暂无错题</div>
+      <div style="color:var(--text-secondary);margin-bottom:20px;">继续加油，答对更多题目来减少错题吧！</div>
+      <button class="btn btn-primary" onclick="startQuiz('sequential')">顺序刷题</button>
+      <button class="btn btn-outline" onclick="exitQuiz()" style="margin-left:8px;">返回首页</button>
+    </div>
+  `;
+}
+
+function clearAllWrong() {
+  if (!currentBankId) return;
+  if (!confirm('确定清空该题库的所有错题吗？')) return;
+  delete wrongBook[currentBankId];
+  saveWrong(wrongBook);
+  viewWrongBook();
+  showToast('错题本已清空');
+}
+
+// ==================== QUIZ SESSION PERSISTENCE ====================
+const SESSION_KEY = 'quiz_session';
+
+function getSessionKey() {
+  return `${SESSION_KEY}_${currentBankId}_${quizMode}`;
+}
+
+function saveQuizSession() {
+  if (!quizActive || quizFinished || !currentBankId || quizQuestions.length === 0) return;
+  localStorage.setItem(getSessionKey(), JSON.stringify({
+    quizQuestions: quizQuestions.map(q => q.id),
+    quizIndex,
+    userChoices,
+    quizMode
+  }));
+}
+
+function loadQuizSession(bankId, mode) {
+  try {
+    const key = `${SESSION_KEY}_${bankId}_${mode}`;
+    const data = JSON.parse(localStorage.getItem(key));
+    if (!data || !data.quizQuestions || data.quizQuestions.length === 0) return false;
+
+    const bank = banks.find(b => b.id === bankId);
+    if (!bank) return false;
+
+    let qs = data.quizQuestions.map(id => bank.questions.find(q => q.id === id)).filter(Boolean);
+    if (qs.length === 0) return false;
+
+    // For wrong mode, validate questions are still in the wrong book
+    if (mode === 'wrong') {
+      const wrongIds = (wrongBook[bankId] || []).map(w => w.questionId);
+      qs = qs.filter(q => wrongIds.includes(q.id));
+      if (qs.length === 0) {
+        clearQuizSession(bankId, mode);
+        return false;
+      }
+    }
+
+    currentBankId = bankId;
+    quizMode = data.quizMode || mode;
+    quizQuestions = qs;
+    quizIndex = Math.min(data.quizIndex || 0, qs.length - 1);
+    userChoices = data.userChoices || {};
+    // Clean up choices for removed questions
+    Object.keys(userChoices).forEach(id => {
+      if (!qs.find(q => q.id === id)) delete userChoices[id];
+    });
+    quizFinished = false;
+    quizActive = true;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function clearQuizSession(bankId, mode) {
+  const key = `${SESSION_KEY}_${bankId}_${mode}`;
+  localStorage.removeItem(key);
+}
+
+function hasQuizSession(bankId, mode) {
+  const key = `${SESSION_KEY}_${bankId}_${mode}`;
+  try {
+    const data = JSON.parse(localStorage.getItem(key));
+    return data && data.quizQuestions && data.quizQuestions.length > 0 && Object.keys(data.userChoices || {}).length > 0;
+  } catch { return false; }
+}
+
+// ==================== BANK MANAGEMENT ====================
+function deleteBank(id) {
+  if (!confirm('确定删除这个题库吗？此操作不可撤销。')) return;
+  banks = banks.filter(b => b.id !== id);
+  delete wrongBook[id];
+  saveWrong(wrongBook);
+  records = records.filter(r => r.bankId !== id);
+  saveRecords(records);
+  saveBanks(banks);
+
+  if (currentBankId === id) {
+    currentBankId = null;
+    showView('welcome');
+  }
+  renderSidebar();
+}
+
+function handleFileUpload(file) {
+  showToast('正在解析文档...');
+  parseDocx(file).then(result => {
+    if (result.questions.length === 0) {
+      showToast('未能从文档中识别到选择题，请检查格式（题干+括号内答案+ABCD选项）');
+      return;
+    }
+    const bank = {
+      id: 'b_' + Date.now(),
+      name: result.name,
+      questions: result.questions,
+      createdAt: new Date().toISOString()
+    };
+    banks.unshift(bank);
+    saveBanks(banks);
+    currentBankId = bank.id;
+    renderSidebar();
+    showView('preview');
+    previewBank(bank.id);
+    showToast(`成功导入 ${result.questions.length} 道选择题`);
+  }).catch(err => {
+    console.error(err);
+    showToast('解析失败，请确认文件为 .docx 格式');
+  });
+}
+
+// ==================== THEME ====================
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  const next = current === 'dark' ? '' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  document.getElementById('themeBtn').textContent = next === 'dark' ? '☀️' : '🌙';
+  localStorage.setItem(THEME_KEY, next);
+}
+
+function initTheme() {
+  const saved = localStorage.getItem(THEME_KEY) || '';
+  document.documentElement.setAttribute('data-theme', saved);
+  document.getElementById('themeBtn').textContent = saved === 'dark' ? '☀️' : '🌙';
+}
+
+// ==================== UTILS ====================
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+function formatDate(iso) {
+  const d = new Date(iso);
+  const now = new Date();
+  const diff = now - d;
+  if (diff < 60000) return '刚刚';
+  if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function showToast(msg) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2000);
+}
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ==================== EVENT LISTENERS ====================
+document.getElementById('uploadArea').addEventListener('click', function() {
+  document.getElementById('fileInput').click();
+});
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  if (e.target.files[0]) {
+    handleFileUpload(e.target.files[0]);
+    this.value = '';
+  }
+});
+// Drag and drop
+document.getElementById('uploadArea').addEventListener('dragover', function(e) {
+  e.preventDefault();
+  this.style.borderColor = 'var(--primary)';
+});
+document.getElementById('uploadArea').addEventListener('dragleave', function(e) {
+  e.preventDefault();
+  this.style.borderColor = '';
+});
+document.getElementById('uploadArea').addEventListener('drop', function(e) {
+  e.preventDefault();
+  this.style.borderColor = '';
+  const file = e.dataTransfer.files[0];
+  if (file && file.name.endsWith('.docx')) {
+    handleFileUpload(file);
+  } else {
+    showToast('请上传 .docx 格式文件');
+  }
+});
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+  if (currentView !== 'quiz' || quizFinished) return;
+  const q = quizQuestions[quizIndex];
+  if (!q) return;
+  const chosen = userChoices[q.id];
+
+  if (!chosen && ['A', 'B', 'C', 'D'].includes(e.key.toUpperCase())) {
+    e.preventDefault();
+    chooseOption(q.id, e.key.toUpperCase());
+  } else if (chosen && (e.key === 'Enter' || e.key === 'ArrowRight')) {
+    e.preventDefault();
+    nextQuestion();
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    prevQuestion();
+  }
+});
+
+// ==================== INIT ====================
+initTheme();
+renderSidebar();
+// Try to restore last active quiz session
+(function tryRestoreSession() {
+  for (const bank of banks) {
+    for (const mode of ['sequential', 'random', 'wrong']) {
+      if (loadQuizSession(bank.id, mode)) {
+        renderSidebar();
+        return;
+      }
+    }
+  }
+})();
+renderWelcome();
+</script>
+
+</body>
+</html>
