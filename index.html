@@ -716,7 +716,7 @@ function renderSidebar() {
       <div class="bank-name">📄 ${escapeHtml(b.name)}</div>
       <div class="bank-meta">
         <span>${b.questions.length} 题</span>
-        ${isActiveQuiz ? `<span style="color:var(--primary);font-weight:600;">已答${Object.keys(userChoices).length}题</span>` : ''}
+        ${isActiveQuiz ? `<span style="color:var(--primary);font-weight:600;">已答${Object.keys(userChoices).filter(qId => quizQuestions.some(q => q.id === qId)).length}题</span>` : ''}
         <span>${formatDate(b.createdAt)}</span>
       </div>
       <div class="bank-actions">
