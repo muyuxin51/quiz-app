@@ -459,7 +459,7 @@ body {
 <header class="header">
   <div style="display:flex;align-items:center;gap:12px;">
     <button class="btn-icon sidebar-toggle" onclick="toggleSidebar()" title="菜单">☰</button>
-    <h1>刷题助手 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">v2.2</span></h1>
+    <h1>刷题助手 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">v2.3</span></h1>
   </div>
   <div class="header-actions">
     <button class="btn-icon" onclick="toggleTheme()" title="切换主题" id="themeBtn">🌙</button>
@@ -1503,6 +1503,16 @@ function saveQuizSession() {
 }
 
 function loadQuizSession(bankId, mode) {
+  // For sequential mode, verify session covers the full bank
+  if (mode === 'sequential') {
+    const bank = banks.find(b => b.id === bankId);
+    if (!bank) return false;
+    const key = `${SESSION_KEY}_${bankId}_${mode}`;
+    try {
+      const data = JSON.parse(localStorage.getItem(key));
+      if (!data || !data.quizQuestions || data.quizQuestions.length !== bank.questions.length) return false;
+    } catch { return false; }
+  }
   try {
     const key = `${SESSION_KEY}_${bankId}_${mode}`;
     const data = JSON.parse(localStorage.getItem(key));
