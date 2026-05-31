@@ -459,7 +459,7 @@ body {
 <header class="header">
   <div style="display:flex;align-items:center;gap:12px;">
     <button class="btn-icon sidebar-toggle" onclick="toggleSidebar()" title="菜单">☰</button>
-    <h1>刷题助手</h1>
+    <h1>刷题助手 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">v2026.05.31</span></h1>
   </div>
   <div class="header-actions">
     <button class="btn-icon" onclick="toggleTheme()" title="切换主题" id="themeBtn">🌙</button>
@@ -710,17 +710,20 @@ function renderSidebar() {
     return;
   }
   list.innerHTML = banks.map(b => {
-    const isActiveQuiz = quizActive && !quizFinished && currentBankId === b.id && quizQuestions.length > 0;
+    // Check if this bank has an active session via saved data
+    const hasSession = ['sequential','random','wrong'].some(m => hasQuizSession(b.id, m));
+    const isActiveNow = quizActive && !quizFinished && currentBankId === b.id;
+    const savedCount = getSavedAnswerCount(b.id);
     return `
     <div class="bank-item ${b.id === currentBankId ? 'active' : ''}" onclick="selectBank('${b.id}')">
       <div class="bank-name">📄 ${escapeHtml(b.name)}</div>
       <div class="bank-meta">
         <span>${b.questions.length} 题</span>
-        ${isActiveQuiz ? `<span style="color:var(--primary);font-weight:600;">已答${Object.keys(userChoices).filter(qId => quizQuestions.some(q => q.id === qId)).length}题</span>` : ''}
+        ${isActiveNow ? `<span style="color:var(--primary);font-weight:600;">已答${Object.keys(userChoices).filter(qId => b.questions.some(q => q.id === qId)).length}题</span>` : (hasSession && savedCount > 0 ? `<span style="color:var(--text-secondary);">上次已答${savedCount}题</span>` : '')}
         <span>${formatDate(b.createdAt)}</span>
       </div>
       <div class="bank-actions">
-        <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();selectBank('${b.id}');${isActiveQuiz ? 'resumeQuiz()' : 'startQuiz()'};">${isActiveQuiz ? '继续刷题' : '刷题'}</button>
+        <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();selectBank('${b.id}');${isActiveNow ? 'resumeQuiz()' : 'startQuiz()'};">${isActiveNow ? '继续刷题' : '刷题'}</button>
         <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();previewBank('${b.id}');">预览</button>
         <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteBank('${b.id}');">删除</button>
       </div>
@@ -1460,6 +1463,21 @@ function loadQuizSession(bankId, mode) {
 function clearQuizSession(bankId, mode) {
   const key = `${SESSION_KEY}_${bankId}_${mode}`;
   localStorage.removeItem(key);
+}
+
+function getSavedAnswerCount(bankId) {
+  let max = 0;
+  for (const mode of ['sequential', 'random', 'wrong']) {
+    const key = `${SESSION_KEY}_${bankId}_${mode}`;
+    try {
+      const data = JSON.parse(localStorage.getItem(key));
+      if (data && data.userChoices) {
+        const count = Object.keys(data.userChoices).length;
+        if (count > max) max = count;
+      }
+    } catch {}
+  }
+  return max;
 }
 
 function hasQuizSession(bankId, mode) {
