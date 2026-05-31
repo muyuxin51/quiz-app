@@ -459,7 +459,7 @@ body {
 <header class="header">
   <div style="display:flex;align-items:center;gap:12px;">
     <button class="btn-icon sidebar-toggle" onclick="toggleSidebar()" title="菜单">☰</button>
-    <h1>刷题助手 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">v2</span></h1>
+    <h1>刷题助手 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">v2.0</span></h1>
   </div>
   <div class="header-actions">
     <button class="btn-icon" onclick="toggleTheme()" title="切换主题" id="themeBtn">🌙</button>
@@ -471,6 +471,7 @@ body {
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <h3>题库管理</h3>
+      <input type="text" placeholder="🔍 搜索题目..." id="searchInput" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg);color:var(--text);outline:none;" onfocus="this.select()">
       <div class="upload-area" id="uploadArea">
         <p>点击上传 Word 文档</p>
         <p class="upload-hint">支持 .docx 格式 · 选择题</p>
@@ -701,6 +702,79 @@ let quizActive = false; // 是否有一个活跃的刷题会话
 
 let records = loadRecords();
 let wrongBook = loadWrong();
+
+// ==================== SEARCH ====================
+document.addEventListener('DOMContentLoaded', function() {
+  const si = document.getElementById('searchInput');
+  if (si) {
+    si.addEventListener('input', function() {
+      const q = this.value.trim().toLowerCase();
+      if (q.length < 2) { renderSidebar(); return; }
+      searchQuestions(q);
+    });
+    si.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') { this.value = ''; renderSidebar(); }
+    });
+  }
+});
+
+function searchQuestions(query) {
+  const results = [];
+  for (const bank of banks) {
+    for (let i = 0; i < bank.questions.length; i++) {
+      const q = bank.questions[i];
+      const fullText = (q.original + ' ' + q.options.map(o => o.text).join(' ') + ' ' + q.answer).toLowerCase();
+      if (fullText.includes(query)) {
+        results.push({ bank, bankName: bank.name, index: i, question: q });
+      }
+    }
+  }
+  // Show results in sidebar
+  const list = document.getElementById('bankList');
+  if (results.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><p>未找到匹配的题目</p></div>';
+    return;
+  }
+  list.innerHTML = results.map((r, idx) => {
+    const q = r.question;
+    return `
+    <div class="bank-item" style="cursor:pointer;" onclick="previewBankById('${r.bank.id}', ${r.index})">
+      <div class="bank-name" style="font-size:13px;">📄 ${escapeHtml(r.bankName)} #${r.index+1} [${(q.type||'mcq')==='tf'?'判断':(q.type||'mcq')==='fill'?'填空':'选择'}]</div>
+      <div style="font-size:12px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(q.original.substring(0,60))}</div>
+      <div style="font-size:11px;color:var(--primary);">答案：${escapeHtml(q.answer||'')}</div>
+    </div>`;
+  }).join('');
+}
+
+function previewBankById(bankId, questionIndex) {
+  // Clear search
+  const si = document.getElementById('searchInput');
+  if (si) si.value = '';
+  selectBank(bankId);
+  renderSidebar();
+  const bank = getCurrentBank();
+  if (!bank) return;
+  showView('preview');
+  // Show preview with the specific question scrolled into view
+  let html = `<div class="section-title">📋 ${escapeHtml(bank.name)} · 共 ${bank.questions.length} 题</div><div class="preview-list">`;
+  bank.questions.forEach((q, i) => {
+    const highlight = i === questionIndex ? 'border:2px solid var(--primary);' : '';
+    const t = q.type || 'mcq';
+    const tLabel = t === 'tf' ? '[判断]' : t === 'fill' ? '[填空]' : t === 'short' ? '[简答]' : '';
+    html += `<div class="preview-item" id="pq_${i}" style="${highlight}">
+      <div class="q-text">${i+1}. ${tLabel} ${escapeHtml(q.original)}</div>
+      ${q.options.length > 0 ? `<div class="q-options">选项：${q.options.map(o => o.letter + '. ' + escapeHtml(o.text)).join(' | ')}</div>` : ''}
+      <div class="q-answer">✅ 答案：${escapeHtml(q.answer||'')}</div>
+    </div>`;
+  });
+  html += '</div><div style="margin-top:20px;"><button class="btn btn-primary" onclick="startQuiz()">开始刷题</button> <button class="btn btn-outline" onclick="goBack()">返回</button></div>';
+  document.getElementById('previewView').innerHTML = html;
+  // Scroll to highlighted question
+  setTimeout(() => {
+    const el = document.getElementById('pq_' + questionIndex);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 200);
+}
 
 // ==================== RENDER ====================
 function renderSidebar() {
