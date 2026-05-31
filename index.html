@@ -459,7 +459,7 @@ body {
 <header class="header">
   <div style="display:flex;align-items:center;gap:12px;">
     <button class="btn-icon sidebar-toggle" onclick="toggleSidebar()" title="菜单">☰</button>
-    <h1>刷题助手 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">v4.4</span></h1>
+    <h1>刷题助手 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">v4.5</span></h1>
   </div>
   <div class="header-actions">
     <button class="btn-icon" onclick="toggleTheme()" title="切换主题" id="themeBtn">🌙</button>
@@ -886,8 +886,8 @@ function startQuiz(mode) {
     currentBankId = savedBankId;
   }
 
-  // Try to restore saved session for the target mode
-  if (loadQuizSession(currentBankId, targetMode)) {
+  // Don't restore sessions for wrong mode (wrong book changes dynamically)
+  if (targetMode !== 'wrong' && loadQuizSession(currentBankId, targetMode)) {
     showView('quiz');
     renderQuiz();
     renderSidebar();
@@ -1495,7 +1495,7 @@ function getSessionKey() {
 }
 
 function saveQuizSession() {
-  if (!quizActive || quizFinished || !currentBankId || quizQuestions.length === 0) return;
+  if (!quizActive || quizFinished || !currentBankId || quizQuestions.length === 0 || quizMode === 'wrong') return;
   localStorage.setItem(getSessionKey(), JSON.stringify({
     quizQuestions: quizQuestions.map(q => q.id),
     quizIndex,
