@@ -459,7 +459,7 @@ body {
 <header class="header">
   <div style="display:flex;align-items:center;gap:12px;">
     <button class="btn-icon sidebar-toggle" onclick="toggleSidebar()" title="菜单">☰</button>
-    <h1>刷题助手 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">v2.5</span></h1>
+    <h1>刷题助手 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">v2.6</span></h1>
   </div>
   <div class="header-actions">
     <button class="btn-icon" onclick="toggleTheme()" title="切换主题" id="themeBtn">🌙</button>
@@ -1091,10 +1091,11 @@ function renderAnswerArea(q, chosen) {
   const t = q.type || 'mcq';
 
   if (t === 'tf') {
-    const isCorrect = chosen && chosen === q.answer;
-    const isWrong = chosen && chosen !== q.answer;
-    const vCls = isCorrect ? 'selected-correct' : (isWrong && chosen === '√' ? 'selected-wrong' : '') + (chosen && q.answer === '√' ? ' show-correct' : '');
-    const xCls = isCorrect ? 'selected-correct' : (isWrong && chosen === '×' ? 'selected-wrong' : '') + (chosen && q.answer === '×' ? ' show-correct' : '');
+    const correct = q.answer;
+    const vChosen = chosen === '√';
+    const xChosen = chosen === '×';
+    const vCls = vChosen && correct === '√' ? 'selected-correct' : (vChosen && correct !== '√' ? 'selected-wrong' : '') + (chosen && correct === '√' ? ' show-correct' : '');
+    const xCls = xChosen && correct === '×' ? 'selected-correct' : (xChosen && correct !== '×' ? 'selected-wrong' : '') + (chosen && correct === '×' ? ' show-correct' : '');
     return `<div class="options-list">
       <button class="option-btn ${vCls}" ${chosen ? 'disabled' : ''} onclick="submitTF('${q.id}','√')"><span class="opt-letter">√</span><span>正确</span></button>
       <button class="option-btn ${xCls}" ${chosen ? 'disabled' : ''} onclick="submitTF('${q.id}','×')"><span class="opt-letter">×</span><span>错误</span></button>
