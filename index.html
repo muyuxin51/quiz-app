@@ -791,9 +791,22 @@ function startQuiz(mode) {
 
   const targetMode = mode || 'sequential';
 
-  // Save current session before switching
-  if (quizActive && !quizFinished) {
+  // Save current session before switching (use the bank this quiz belongs to)
+  if (quizActive && !quizFinished && quizQuestions.length > 0) {
+    const oldBankId = quizQuestions[0].id.startsWith('q_rep') ? currentBankId : currentBankId;
+    // Find which bank owns the first question
+    let oldBankId2 = currentBankId;
+    for (const b of banks) {
+      if (b.questions.some(q => q.id === quizQuestions[0].id)) {
+        oldBankId2 = b.id;
+        break;
+      }
+    }
+    // Temporarily restore old bank ID for saving
+    const savedBankId = currentBankId;
+    currentBankId = oldBankId2;
     saveQuizSession();
+    currentBankId = savedBankId;
   }
 
   // Try to restore saved session for the target mode
