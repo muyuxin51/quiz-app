@@ -459,7 +459,7 @@ body {
 <header class="header">
   <div style="display:flex;align-items:center;gap:12px;">
     <button class="btn-icon sidebar-toggle" onclick="toggleSidebar()" title="菜单">☰</button>
-    <h1>刷题助手 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">v2.0</span></h1>
+    <h1>刷题助手 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">v2.1</span></h1>
   </div>
   <div class="header-actions">
     <button class="btn-icon" onclick="toggleTheme()" title="切换主题" id="themeBtn">🌙</button>
@@ -1742,24 +1742,31 @@ async function initApp() {
     list.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><p>加载共享题库中...</p></div>';
   }
 
-  // Fetch shared banks from CDN in background
-  const sharedBanks = await fetchSharedBanks();
-  console.log('Shared banks loaded:', sharedBanks.length, 'total questions:', sharedBanks.reduce((s,b)=>s+b.questions.length,0));
+  // Fetch shared banks with retry
+  let sharedBanks = [];
+  for (let attempt = 0; attempt < 3; attempt++) {
+    sharedBanks = await fetchSharedBanks();
+    if (sharedBanks.length > 0) break;
+    if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
+  }
 
   if (sharedBanks.length > 0) {
     const deletedIds = getDeletedBankIds();
     const localBanks = loadLocalBanks();
-    // Shared banks always override local cached versions
     const merged = [...sharedBanks];
     for (const lb of localBanks) {
       if (lb._local && !merged.find(b => b.id === lb.id)) {
         merged.unshift(lb);
       }
     }
-    // Remove deleted banks
     const filtered = merged.filter(b => !deletedIds.has(b.id));
     banks = filtered;
     saveLocalBanks(banks);
+  } else if (banks.length === 0) {
+    // All retries failed and no local cache - show offline message
+    if (list) {
+      list.innerHTML = '<div class="empty-state"><div class="empty-icon">📡</div><p>网络连接失败<br><small>请检查网络后刷新重试</small></p></div>';
+    }
   }
   renderSidebar();
   if (currentView === 'welcome') renderWelcome();
