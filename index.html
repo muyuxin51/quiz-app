@@ -771,6 +771,10 @@ function resumeQuiz() {
 }
 
 function selectBank(id) {
+  // Save current quiz session before switching banks
+  if (quizActive && !quizFinished && currentBankId && currentBankId !== id) {
+    saveQuizSession();
+  }
   currentBankId = id;
   renderSidebar();
 }
