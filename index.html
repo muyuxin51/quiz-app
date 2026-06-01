@@ -459,7 +459,7 @@ body {
 <header class="header">
   <div style="display:flex;align-items:center;gap:12px;">
     <button class="btn-icon sidebar-toggle" onclick="toggleSidebar()" title="菜单">☰</button>
-    <h1>刷题助手 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">v5.6</span></h1>
+    <h1>刷题助手 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">v5.7</span></h1>
   </div>
   <div class="header-actions">
     <button class="btn-icon" onclick="toggleTheme()" title="切换主题" id="themeBtn">🌙</button>
@@ -1140,9 +1140,11 @@ function submitTF(qId, answer) {
   if (userChoices[qId]) return;
   userChoices[qId] = answer;
   const q = quizQuestions[quizIndex];
-  updateWrongBook(q, q.answer === answer);
+  const isCorrect = q.answer === answer;
+  updateWrongBook(q, isCorrect);
   saveQuizSession();
   renderQuiz();
+  if (isCorrect) setTimeout(autoAdvance, 800);
 }
 
 function submitFill(qId) {
@@ -1158,15 +1160,17 @@ function submitFill(qId) {
   updateWrongBook(q, isCorrect);
   saveQuizSession();
   renderQuiz();
+  if (isCorrect) setTimeout(autoAdvance, 800);
 }
 
 function showShortAnswer(qId) {
   if (userChoices[qId]) return;
   userChoices[qId] = '已查看';
   const q = quizQuestions[quizIndex];
-  updateWrongBook(q, true); // Short answers count as correct since user self-grades
+  updateWrongBook(q, true);
   saveQuizSession();
   renderQuiz();
+  setTimeout(autoAdvance, 600); // Short answers always auto-advance
 }
 
 function renderFeedback(q, chosen) {
@@ -1200,6 +1204,7 @@ function chooseOption(qId, letter) {
   saveQuizSession();
 
   renderQuiz();
+  if (isCorrect) setTimeout(autoAdvance, 800);
 }
 
 function updateWrongBook(q, isCorrect) {
@@ -1218,6 +1223,11 @@ function updateWrongBook(q, isCorrect) {
     wrongBook[currentBankId] = wrongBook[currentBankId].filter(w => w.questionId !== q.id);
   }
   saveWrong(wrongBook);
+}
+
+function autoAdvance() {
+  if (quizFinished || quizIndex >= quizQuestions.length - 1) return;
+  nextQuestion();
 }
 
 function scrollToCard() {
