@@ -459,7 +459,7 @@ body {
 <header class="header">
   <div style="display:flex;align-items:center;gap:12px;">
     <button class="btn-icon sidebar-toggle" onclick="toggleSidebar()" title="菜单">☰</button>
-    <h1>刷题助手 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">v5.7</span></h1>
+    <h1>刷题助手 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">v5.8</span></h1>
   </div>
   <div class="header-actions">
     <button class="btn-icon" onclick="toggleTheme()" title="切换主题" id="themeBtn">🌙</button>
@@ -1144,7 +1144,7 @@ function submitTF(qId, answer) {
   updateWrongBook(q, isCorrect);
   saveQuizSession();
   renderQuiz();
-  if (isCorrect) setTimeout(autoAdvance, 800);
+  if (isCorrect) setTimeout(autoAdvance, 400);
 }
 
 function submitFill(qId) {
@@ -1160,7 +1160,7 @@ function submitFill(qId) {
   updateWrongBook(q, isCorrect);
   saveQuizSession();
   renderQuiz();
-  if (isCorrect) setTimeout(autoAdvance, 800);
+  if (isCorrect) setTimeout(autoAdvance, 400);
 }
 
 function showShortAnswer(qId) {
@@ -1170,7 +1170,7 @@ function showShortAnswer(qId) {
   updateWrongBook(q, true);
   saveQuizSession();
   renderQuiz();
-  setTimeout(autoAdvance, 600); // Short answers always auto-advance
+  setTimeout(autoAdvance, 400); // Short answers always auto-advance
 }
 
 function renderFeedback(q, chosen) {
@@ -1204,7 +1204,7 @@ function chooseOption(qId, letter) {
   saveQuizSession();
 
   renderQuiz();
-  if (isCorrect) setTimeout(autoAdvance, 800);
+  if (isCorrect) setTimeout(autoAdvance, 400);
 }
 
 function updateWrongBook(q, isCorrect) {
