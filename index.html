@@ -459,7 +459,7 @@ body {
 <header class="header">
   <div style="display:flex;align-items:center;gap:12px;">
     <button class="btn-icon sidebar-toggle" onclick="toggleSidebar()" title="菜单">☰</button>
-    <h1>刷题助手 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">v5.9</span></h1>
+    <h1>刷题助手 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">v6.0</span></h1>
   </div>
   <div class="header-actions">
     <button class="btn-icon" onclick="toggleTheme()" title="切换主题" id="themeBtn">🌙</button>
@@ -1010,14 +1010,36 @@ function jumpToQuestion(index) {
   }, 100);
 }
 
+function normalizeAnswer(str) {
+  // Remove whitespace, commas, periods, Chinese/English punctuation, convert to lowercase
+  return str.toLowerCase().replace(/[\s,，。、．\.\/\\]/g, '');
+}
+
+function isAnswerCorrect(q, chosen) {
+  const t = q.type || 'mcq';
+  if (t === 'short') return true;
+  if (t === 'fill') {
+    if (!q.answer) return false;
+    const na = normalizeAnswer(chosen);
+    const ca = normalizeAnswer(q.answer);
+    // Also try splitting by / for alternative answers
+    const alts = q.answer.split('/');
+    return na === ca || alts.some(a => normalizeAnswer(a) === na);
+  }
+  if (q.multiSelect) {
+    // Multi-select: user's answer letters (sorted) must match exactly
+    if (!chosen || !q.answer) return false;
+    const userLetters = [...chosen.toUpperCase()].sort().join('');
+    const correctLetters = [...q.answer.toUpperCase()].sort().join('');
+    return userLetters === correctLetters;
+  }
+  return chosen === q.answer;
+}
+
 function countCorrect() {
   return Object.entries(userChoices).filter(([qId, chosen]) => {
     const q = quizQuestions.find(q => q.id === qId);
-    if (!q) return false;
-    const t = q.type || 'mcq';
-    if (t === 'short') return true;
-    if (t === 'fill') return chosen === q.answer || (q.answer && q.answer.split('/').some(a => chosen === a.trim()));
-    return chosen === q.answer;
+    return q && isAnswerCorrect(q, chosen);
   }).length;
 }
 
@@ -1120,6 +1142,34 @@ function renderAnswerArea(q, chosen) {
     return '';
   }
 
+  // Multi-select MCQ
+  if (q.multiSelect) {
+    if (chosen) {
+      // Show results
+      const selected = new Set(chosen.split(''));
+      const correct = new Set((q.answer||'').split(''));
+      return `<div class="options-list">
+        ${q.options.map(opt => {
+          let cls = '';
+          if (correct.has(opt.letter) && selected.has(opt.letter)) cls = 'selected-correct';
+          else if (!correct.has(opt.letter) && selected.has(opt.letter)) cls = 'selected-wrong';
+          else if (correct.has(opt.letter)) cls = 'show-correct';
+          return `<button class="option-btn ${cls}" disabled><span class="opt-letter">${opt.letter}</span><span>${escapeHtml(opt.text)}</span></button>`;
+        }).join('')}
+      </div>`;
+    }
+    // Not chosen yet: show checkboxes
+    const msId = 'ms_' + q.id;
+    return `<div class="options-list" id="${msId}">
+      ${q.options.map(opt => `
+        <button class="option-btn ms-option" data-letter="${opt.letter}" onclick="toggleMultiSelect(this,'${opt.letter}')">
+          <span class="opt-letter">${opt.letter}</span><span>${escapeHtml(opt.text)}</span>
+        </button>
+      `).join('')}
+      <button class="btn btn-primary" style="margin-top:8px;" onclick="submitMultiSelect('${q.id}','${msId}')">提交答案</button>
+    </div>`;
+  }
+
   // Default: MCQ
   return `<div class="options-list">
     ${q.options.map(opt => {
@@ -1134,6 +1184,27 @@ function renderAnswerArea(q, chosen) {
       </button>`;
     }).join('')}
   </div>`;
+}
+
+function toggleMultiSelect(btn, letter) {
+  btn.classList.toggle('selected-correct');
+}
+function submitMultiSelect(qId, containerId) {
+  if (userChoices[qId]) return;
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const selected = [];
+  container.querySelectorAll('.ms-option.selected-correct').forEach(btn => {
+    selected.push(btn.dataset.letter);
+  });
+  if (selected.length === 0) return;
+  const chosen = selected.sort().join('');
+  userChoices[qId] = chosen;
+  const q = quizQuestions[quizIndex];
+  updateWrongBook(q, isAnswerCorrect(q, chosen));
+  saveQuizSession();
+  renderQuiz();
+  if (isAnswerCorrect(q, chosen)) setTimeout(autoAdvance, 400);
 }
 
 function submitTF(qId, answer) {
@@ -1156,7 +1227,7 @@ function submitFill(qId) {
   userChoices[qId] = val;
   const q = quizQuestions[quizIndex];
   // Loose comparison for fill-in-blank
-  const isCorrect = val === q.answer || q.answer.split('/').some(a => val === a.trim());
+  const isCorrect = isAnswerCorrect(q, val);
   updateWrongBook(q, isCorrect);
   saveQuizSession();
   renderQuiz();
@@ -1177,14 +1248,7 @@ function renderFeedback(q, chosen) {
   const t = q.type || 'mcq';
   if (t === 'short') return '';
 
-  let isCorrect;
-  if (t === 'fill') {
-    isCorrect = chosen === q.answer || (q.answer && q.answer.split('/').some(a => chosen === a.trim()));
-  } else if (t === 'tf') {
-    isCorrect = chosen === q.answer;
-  } else {
-    isCorrect = chosen === q.answer;
-  }
+  let isCorrect = isAnswerCorrect(q, chosen);
 
   if (isCorrect) {
     return `<div class="quiz-feedback correct">✅ 回答正确！${q.answerDetail ? '<br><small>💡 ' + escapeHtml(q.answerDetail) + '</small>' : ''}</div>`;
