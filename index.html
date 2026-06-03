@@ -373,7 +373,7 @@ body {
 <header class="header">
   <div style="display:flex;align-items:center;gap:12px;">
     <button class="btn-icon sidebar-toggle" onclick="toggleSidebar()" title="菜单">☰</button>
-    <h1>刷题助手 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">v7.6</span><span id="verLabel" style="display:none"></span></h1>
+    <h1>刷题助手 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">v7.7</span><span id="verLabel" style="display:none"></span></h1>
   </div>
   <div class="header-actions">
     <button class="btn-icon" onclick="toggleTheme()" title="切换主题" id="themeBtn">🌙</button>
@@ -900,7 +900,7 @@ function buildOverview() {
       let cls = '';
       if (i === quizIndex) cls = 'current';
       if (chosen) {
-        cls += ' ' + (chosen === q.answer ? 'correct' : 'wrong');
+        cls += ' ' + (isAnswerCorrect(q, chosen) ? 'correct' : 'wrong');
       }
       return `<span class="q-overview-item ${cls.trim()}" onclick="jumpToQuestion(${i})" title="第${i + 1}题">${i + 1}</span>`;
     }).join('')}
